@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { mockLooks } from '@/data/mockLooks';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -43,22 +44,30 @@ export default function HomePage() {
 
   const currentLook = mockLooks[currentLookIndex];
 
-  // VERSION MOBILE - Style comme Image 4
+  // VERSION MOBILE
   if (isMobile) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        {/* Filtres responsives - Plus compacts */}
-        <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-hide">
-          <button className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous</button>
-          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
-          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
-          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Soirée</button>
-          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
+        {/* Titre et description */}
+        <div className="px-4 pt-3 pb-2 text-center">
+          <h2 className="text-2xl font-bold text-black mb-1">Trouve ton look parfait</h2>
+          <p className="text-xs text-gray-600">
+            Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
+          </p>
         </div>
 
-        {/* Look en carré centré - Comme Image 4 */}
+        {/* Filtres plus compacts */}
+        <div className="flex gap-1 px-2 py-2 overflow-x-auto scrollbar-hide">
+          <button className="px-2.5 py-1 bg-gray-900 text-white rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Tous</button>
+          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
+          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
+          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Soirée</button>
+          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
+        </div>
+
+        {/* Look cliquable */}
         <div className="flex-1 flex items-center justify-center p-4 bg-white">
-          <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden">
+          <Link href={`/feed/${currentLook.id}`} className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden block">
             <Image 
               src={currentLook.image} 
               alt={currentLook.title}
@@ -66,44 +75,34 @@ export default function HomePage() {
               className="object-cover"
               priority
             />
-          </div>
+          </Link>
         </div>
 
-        {/* Info en bas - Exactement comme Image 4 */}
-        <div className="bg-white px-5 pb-6">
-          {/* Nom du créateur et likes */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-lg">
-                {currentLook.creator.name[0]}
+        {/* Info en bas avec box blanc */}
+        <div className="bg-white px-4 pb-6">
+          {/* Box blanc avec info */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-sm">
+                  {currentLook.creator.name[0]}
+                </div>
+                <div>
+                  <p className="font-bold text-black text-sm">{currentLook.creator.name}</p>
+                  <p className="text-xs text-gray-600">{currentLook.creator.username}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-black text-base">{currentLook.creator.name}</p>
-                <p className="text-sm text-gray-600">{currentLook.creator.username}</p>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-900 text-sm">♡</span>
+                <span className="text-xs font-medium text-gray-900">{currentLook.likes.toLocaleString()}</span>
               </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-gray-900">♡</span>
-              <span className="text-sm font-medium text-gray-900">{currentLook.likes.toLocaleString()}</span>
             </div>
           </div>
 
-          {/* Titre du look */}
-          <h2 className="font-bold text-xl text-black mb-2">{currentLook.title}</h2>
-          
-          {/* Tags */}
-          <div className="flex gap-2 mb-4">
-            {currentLook.tags.slice(0, 2).map(tag => (
-              <span key={tag} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
-                #{tag}
-              </span>
-            ))}
-          </div>
-
-          {/* Bouton Skip - Rond comme Image 4 */}
+          {/* Bouton Skip - Réduit de moitié */}
           <button 
             onClick={skipToNext}
-            className="mx-auto block w-32 h-32 bg-gray-900 text-white rounded-full font-bold text-xl hover:bg-gray-800 transition-colors flex items-center justify-center"
+            className="mx-auto block w-16 h-16 bg-gray-900 text-white rounded-full font-bold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center"
           >
             SKIP
           </button>
@@ -112,7 +111,7 @@ export default function HomePage() {
     );
   }
 
-  // VERSION DESKTOP - INCHANGÉE
+  // VERSION DESKTOP
   return (
     <main className="max-w-7xl mx-auto px-6 py-3">
       <h2 className="text-3xl font-bold text-center mb-1">Trouve ton look parfait</h2>
@@ -122,15 +121,19 @@ export default function HomePage() {
 
       <div className="flex justify-center gap-2 mb-3">
         <button className="px-5 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium">Tous</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Natural</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Glam</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Bold</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Everyday</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Naturel</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Glamour</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Soirée</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Tous les jours</button>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
         {currentLooks.map((look) => (
-          <div key={look.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
+          <Link 
+            key={look.id} 
+            href={`/feed/${look.id}`}
+            className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow block"
+          >
             <div className="relative aspect-[3/4]">
               <Image 
                 src={look.image} 
@@ -167,7 +170,7 @@ export default function HomePage() {
                 )}
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
