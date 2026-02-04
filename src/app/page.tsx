@@ -48,16 +48,16 @@ export default function HomePage() {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        {/* Titre et description - Taille augmentée de 5% */}
-        <div className="px-4 pt-3 pb-1 text-center">
-          <h2 className="text-[26px] font-bold text-black mb-1 leading-tight">Trouve ton look parfait</h2>
-          <p className="text-[13px] text-gray-600 leading-snug">
+        {/* Titre et description */}
+        <div className="px-4 pt-3 pb-2 text-center">
+          <h2 className="text-2xl font-bold text-black mb-1">Trouve ton look parfait</h2>
+          <p className="text-xs text-gray-600">
             Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
           </p>
         </div>
 
-        {/* Filtres - Sans espace en bas */}
-        <div className="flex gap-1 px-2 pb-0 overflow-x-auto scrollbar-hide">
+        {/* Filtres plus compacts */}
+        <div className="flex gap-1 px-2 py-1 overflow-x-auto scrollbar-hide">
           <button className="px-2.5 py-1 bg-gray-900 text-white rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Tous</button>
           <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
           <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
@@ -65,44 +65,46 @@ export default function HomePage() {
           <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
         </div>
 
-        {/* Look - Prend tout l'espace restant */}
-        <div className="flex-1 flex flex-col relative">
-          {/* Image du look */}
-          <Link href={`/feed/${currentLook.id}`} className="flex-1 relative">
-            <Image 
-              src={currentLook.image} 
-              alt={currentLook.title}
-              fill
-              className="object-cover"
-              priority
-            />
-          </Link>
+        {/* Look cliquable avec info en overlay */}
+        <div className="flex-1 flex items-center justify-center px-4 pt-2 pb-4 bg-white relative">
+          <div className="relative w-full max-w-md">
+            {/* Image du look */}
+            <Link href={`/feed/${currentLook.id}`} className="relative w-full aspect-square rounded-2xl overflow-hidden block">
+              <Image 
+                src={currentLook.image} 
+                alt={currentLook.title}
+                fill
+                className="object-cover"
+                priority
+              />
+            </Link>
 
-          {/* Info en bas avec background noir - Collé en bas */}
-          <div className="absolute bottom-0 left-0 right-0 bg-black py-3 px-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
-                  {currentLook.creator.name[0]}
+            {/* Info en overlay au bas de l'image */}
+            <div className="absolute bottom-0 left-0 right-0 bg-black rounded-b-2xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
+                    {currentLook.creator.name[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-sm">{currentLook.creator.name}</p>
+                    <p className="text-xs text-gray-300">{currentLook.creator.username}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-white text-sm">{currentLook.creator.name}</p>
-                  <p className="text-xs text-gray-300">{currentLook.creator.username}</p>
+                <div className="flex items-center gap-1">
+                  <span className="text-white text-sm">♡</span>
+                  <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-white text-sm">♡</span>
-                <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bouton Skip - En bas fixe */}
-        <div className="bg-white py-4 flex justify-center">
+        {/* Bouton Skip - Background rose et texte blanc */}
+        <div className="px-4 pb-6">
           <button 
             onClick={skipToNext}
-            className="w-16 h-16 bg-gray-900 text-white rounded-full font-bold text-sm hover:bg-gray-800 transition-colors flex items-center justify-center"
+            className="mx-auto block w-32 h-14 bg-pink-500 text-white rounded-full font-bold text-base hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
           >
             SKIP
           </button>
