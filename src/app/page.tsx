@@ -56,7 +56,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Filtres avec taille augmentée et pas d'espace en bas */}
+        {/* Filtres avec taille augmentée */}
         <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide">
           <button className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous</button>
           <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
@@ -65,9 +65,9 @@ export default function HomePage() {
           <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
         </div>
 
-        {/* Look cliquable - image seule sans info */}
+        {/* Look cliquable - image seule */}
         <div className="flex-1 flex flex-col justify-center px-4 bg-white">
-          <Link href={`/feed/${currentLook.id}`} className="relative w-full max-w-md mx-auto aspect-square rounded-2xl overflow-hidden block">
+          <Link href={`/feed/${currentLook.id}`} className="relative w-full max-w-md mx-auto aspect-square rounded-t-2xl overflow-hidden block">
             <Image 
               src={currentLook.image} 
               alt={currentLook.title}
@@ -77,9 +77,9 @@ export default function HomePage() {
             />
           </Link>
 
-          {/* Info en dehors de l'image - identique au bas */}
-          <div className="w-full max-w-md mx-auto mt-4 bg-black rounded-xl p-4">
-            <div className="flex items-center justify-between">
+          {/* Box noire avec info et bouton SKIP - collé à l'image */}
+          <div className="w-full max-w-md mx-auto bg-black rounded-b-2xl p-4 pb-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
                   {currentLook.creator.name[0]}
@@ -94,10 +94,8 @@ export default function HomePage() {
                 <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
               </div>
             </div>
-          </div>
 
-          {/* Bouton Skip - Rond et monté en height */}
-          <div className="mt-6 mb-4">
+            {/* Bouton Skip à l'intérieur de la box noire */}
             <button 
               onClick={skipToNext}
               className="mx-auto block w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-sm hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
