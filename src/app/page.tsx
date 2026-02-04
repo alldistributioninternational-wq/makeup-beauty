@@ -43,63 +43,67 @@ export default function HomePage() {
 
   const currentLook = mockLooks[currentLookIndex];
 
-  // VERSION MOBILE - Style TikTok
+  // VERSION MOBILE - Style comme Image 4
   if (isMobile) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        {/* Filtres responsives */}
-        <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
-          <button className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap">Tous</button>
-          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Naturel</button>
-          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Glamour</button>
-          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Soirée</button>
-          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Tous les jours</button>
+        {/* Filtres responsives - Plus compacts */}
+        <div className="flex gap-1.5 px-3 py-2.5 overflow-x-auto scrollbar-hide">
+          <button className="px-3 py-1 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous</button>
+          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
+          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
+          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Soirée</button>
+          <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
         </div>
 
-        {/* Look principal */}
-        <div className="flex-1 relative bg-white">
-          <div className="relative w-full h-full">
+        {/* Look en carré centré - Comme Image 4 */}
+        <div className="flex-1 flex items-center justify-center p-4 bg-white">
+          <div className="relative w-full max-w-md aspect-square rounded-2xl overflow-hidden">
             <Image 
               src={currentLook.image} 
               alt={currentLook.title}
               fill
-              className="object-contain"
+              className="object-cover"
               priority
             />
           </div>
         </div>
 
-        {/* Info en bas - Background blanc */}
-        <div className="bg-white px-4 py-4 border-t border-gray-100">
+        {/* Info en bas - Exactement comme Image 4 */}
+        <div className="bg-white px-5 pb-6">
+          {/* Nom du créateur et likes */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-semibold">
+              <div className="w-12 h-12 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold text-lg">
                 {currentLook.creator.name[0]}
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{currentLook.creator.name}</p>
-                <p className="text-sm text-gray-500">{currentLook.creator.username}</p>
+                <p className="font-bold text-black text-base">{currentLook.creator.name}</p>
+                <p className="text-sm text-gray-600">{currentLook.creator.username}</p>
               </div>
             </div>
-            <div className="text-sm text-gray-600">
-              ♡ {currentLook.likes.toLocaleString()}
+            <div className="flex items-center gap-1">
+              <span className="text-gray-900">♡</span>
+              <span className="text-sm font-medium text-gray-900">{currentLook.likes.toLocaleString()}</span>
             </div>
           </div>
 
-          <h2 className="font-bold text-lg text-gray-900 mb-1">{currentLook.title}</h2>
+          {/* Titre du look */}
+          <h2 className="font-bold text-xl text-black mb-2">{currentLook.title}</h2>
           
+          {/* Tags */}
           <div className="flex gap-2 mb-4">
             {currentLook.tags.slice(0, 2).map(tag => (
-              <span key={tag} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+              <span key={tag} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
                 #{tag}
               </span>
             ))}
           </div>
 
-          {/* Bouton Skip */}
+          {/* Bouton Skip - Rond comme Image 4 */}
           <button 
             onClick={skipToNext}
-            className="w-full py-3 bg-gray-900 text-white rounded-full font-semibold hover:bg-gray-800 transition-colors"
+            className="mx-auto block w-32 h-32 bg-gray-900 text-white rounded-full font-bold text-xl hover:bg-gray-800 transition-colors flex items-center justify-center"
           >
             SKIP
           </button>
@@ -108,7 +112,7 @@ export default function HomePage() {
     );
   }
 
-  // VERSION DESKTOP - Grille
+  // VERSION DESKTOP - INCHANGÉE
   return (
     <main className="max-w-7xl mx-auto px-6 py-3">
       <h2 className="text-3xl font-bold text-center mb-1">Trouve ton look parfait</h2>
