@@ -48,66 +48,63 @@ export default function HomePage() {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        {/* Titre et description */}
-        <div className="px-4 pt-3 pb-2 text-center">
-          <h2 className="text-2xl font-bold text-black mb-1">Trouve ton look parfait</h2>
-          <p className="text-xs text-gray-600">
+        {/* Titre et description avec plus d'espace après le header */}
+        <div className="px-4 pt-6 pb-3 text-center">
+          <h2 className="text-2xl font-bold text-black mb-2">Trouve ton look parfait</h2>
+          <p className="text-sm text-gray-600">
             Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
           </p>
         </div>
 
-        {/* Filtres plus compacts */}
-        <div className="flex gap-1 px-2 py-1 overflow-x-auto scrollbar-hide">
-          <button className="px-2.5 py-1 bg-gray-900 text-white rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Tous</button>
-          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
-          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
-          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Soirée</button>
-          <button className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
+        {/* Filtres avec taille augmentée et pas d'espace en bas */}
+        <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide">
+          <button className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous</button>
+          <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
+          <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
+          <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Soirée</button>
+          <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
         </div>
 
-        {/* Look cliquable avec info en overlay */}
-        <div className="flex-1 flex items-center justify-center px-4 pt-2 pb-4 bg-white relative">
-          <div className="relative w-full max-w-md">
-            {/* Image du look */}
-            <Link href={`/feed/${currentLook.id}`} className="relative w-full aspect-square rounded-2xl overflow-hidden block">
-              <Image 
-                src={currentLook.image} 
-                alt={currentLook.title}
-                fill
-                className="object-cover"
-                priority
-              />
-            </Link>
+        {/* Look cliquable - image seule sans info */}
+        <div className="flex-1 flex flex-col justify-center px-4 bg-white">
+          <Link href={`/feed/${currentLook.id}`} className="relative w-full max-w-md mx-auto aspect-square rounded-2xl overflow-hidden block">
+            <Image 
+              src={currentLook.image} 
+              alt={currentLook.title}
+              fill
+              className="object-cover"
+              priority
+            />
+          </Link>
 
-            {/* Info en overlay au bas de l'image */}
-            <div className="absolute bottom-0 left-0 right-0 bg-black rounded-b-2xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
-                    {currentLook.creator.name[0]}
-                  </div>
-                  <div>
-                    <p className="font-bold text-white text-sm">{currentLook.creator.name}</p>
-                    <p className="text-xs text-gray-300">{currentLook.creator.username}</p>
-                  </div>
+          {/* Info en dehors de l'image - identique au bas */}
+          <div className="w-full max-w-md mx-auto mt-4 bg-black rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
+                  {currentLook.creator.name[0]}
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-white text-sm">♡</span>
-                  <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
+                <div>
+                  <p className="font-bold text-white text-sm">{currentLook.creator.name}</p>
+                  <p className="text-xs text-gray-300">{currentLook.creator.username}</p>
                 </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-white text-sm">♡</span>
+                <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Bouton Skip - Background rose et texte blanc */}
-        <div className="px-4 pb-6">
-          <button 
-            onClick={skipToNext}
-            className="mx-auto block w-32 h-14 bg-pink-500 text-white rounded-full font-bold text-base hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
-          >
-            SKIP
-          </button>
+          {/* Bouton Skip - Rond et monté en height */}
+          <div className="mt-6 mb-4">
+            <button 
+              onClick={skipToNext}
+              className="mx-auto block w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-sm hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
+            >
+              SKIP
+            </button>
+          </div>
         </div>
       </div>
     );
