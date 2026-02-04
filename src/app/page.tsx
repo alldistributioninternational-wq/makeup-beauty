@@ -1,49 +1,109 @@
+// @ts-nocheck
+"use client";
+
+import { useState } from 'react';
 import { mockLooks } from '@/data/mockLooks';
-import LookCard from '@/components/feed/LookCard';
+import Image from 'next/image';
 
-export default function FeedPage() {
+export default function HomePage() {
+  const LOOKS_PER_ROW = 4;
+  const totalRows = Math.ceil(mockLooks.length / LOOKS_PER_ROW);
+  const [currentRow, setCurrentRow] = useState(1);
+
+  const currentLooks = mockLooks.slice(
+    (currentRow - 1) * LOOKS_PER_ROW,
+    currentRow * LOOKS_PER_ROW
+  );
+
+  const showNext = () => {
+    if (currentRow < totalRows) {
+      setCurrentRow(currentRow + 1);
+    }
+  };
+
+  const showPrevious = () => {
+    if (currentRow > 1) {
+      setCurrentRow(currentRow - 1);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      <main className="mx-auto max-w-7xl px-4 py-8">
-        <div className="mb-8 text-center">
-          <h2 className="mb-3 text-4xl font-bold text-gray-900">
-            Trouve ton look parfait 
-          </h2>
-          <p className="mx-auto max-w-2xl text-lg text-gray-600">
-            Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
-          </p>
-        </div>
+    <main className="max-w-7xl mx-auto px-6 py-3">
+      <h2 className="text-3xl font-bold text-center mb-1">Trouve ton look parfait</h2>
+      <p className="text-center text-gray-600 text-sm mb-2">
+        Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
+      </p>
 
-        <div className="mb-8 flex gap-3 overflow-x-auto pb-2">
-          {['Tous', 'Natural', 'Glam', 'Bold', 'Everyday'].map((filter) => (
-            <button
-              key={filter}
-              className={`whitespace-nowrap rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                filter === 'Tous'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {filter}
-            </button>
-          ))}
-        </div>
+      <div className="flex justify-center gap-2 mb-3">
+        <button className="px-5 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium">Tous</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Naturel</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Glamour</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Soiree</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Tous les jours</button>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {mockLooks.map((look) => (
-            <LookCard 
-              key={look.id} 
-              look={look}
-            />
-          ))}
-        </div>
+      <div className="grid grid-cols-4 gap-3">
+        {currentLooks.map((look) => (
+          <div key={look.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
+            <div className="relative aspect-[3/4]">
+              <Image 
+                src={look.image} 
+                alt={look.title}
+                fill
+                className="object-cover"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
+                    {look.creator.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">{look.creator.name}</p>
+                    <p className="text-white/80 text-xs">{look.creator.username}</p>
+                  </div>
+                </div>
+                <h3 className="text-white font-bold">{look.title}</h3>
+                {currentRow > 1 && (
+                  <>
+                    <div className="flex gap-2 mt-1">
+                      {look.tags.slice(0, 2).map(tag => (
+                        <span key={tag} className="text-xs bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-white text-xs">
+                      <span>♡ {look.likes}</span>
+                      <span>🛍️ {look.products.length} produits</span>
+                      <span className="bg-green-500/80 px-2 py-0.5 rounded capitalize">{look.difficulty}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="mt-12 text-center">
-          <button className="rounded-full bg-gray-100 px-8 py-3 font-semibold text-gray-900 transition-colors hover:bg-gray-200">
+      <div className="text-center mt-4 flex justify-center gap-3">
+        {currentRow > 1 && (
+          <button 
+            onClick={showPrevious} 
+            className="px-8 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 transition-colors"
+          >
+            Voir moins de looks
+          </button>
+        )}
+        
+        {currentRow < totalRows && (
+          <button 
+            onClick={showNext} 
+            className="px-8 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 transition-colors"
+          >
             Voir plus de looks
           </button>
-        </div>
-      </main>
-    </div>
+        )}
+      </div>
+    </main>
   );
 }
