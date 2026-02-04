@@ -1,14 +1,24 @@
 // @ts-nocheck
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mockLooks } from '@/data/mockLooks';
 import Image from 'next/image';
 
 export default function HomePage() {
+  const [isMobile, setIsMobile] = useState(false);
+  const [currentLookIndex, setCurrentLookIndex] = useState(0);
+  const [currentRow, setCurrentRow] = useState(1);
+  
   const LOOKS_PER_ROW = 4;
   const totalRows = Math.ceil(mockLooks.length / LOOKS_PER_ROW);
-  const [currentRow, setCurrentRow] = useState(1);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const currentLooks = mockLooks.slice(
     (currentRow - 1) * LOOKS_PER_ROW,
@@ -16,17 +26,89 @@ export default function HomePage() {
   );
 
   const showNext = () => {
-    if (currentRow < totalRows) {
-      setCurrentRow(currentRow + 1);
-    }
+    if (currentRow < totalRows) setCurrentRow(currentRow + 1);
   };
 
   const showPrevious = () => {
-    if (currentRow > 1) {
-      setCurrentRow(currentRow - 1);
+    if (currentRow > 1) setCurrentRow(currentRow - 1);
+  };
+
+  const skipToNext = () => {
+    if (currentLookIndex < mockLooks.length - 1) {
+      setCurrentLookIndex(currentLookIndex + 1);
+    } else {
+      setCurrentLookIndex(0);
     }
   };
 
+  const currentLook = mockLooks[currentLookIndex];
+
+  // VERSION MOBILE - Style TikTok
+  if (isMobile) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        {/* Filtres responsives */}
+        <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
+          <button className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap">Tous</button>
+          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Naturel</button>
+          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Glamour</button>
+          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Soirée</button>
+          <button className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap">Tous les jours</button>
+        </div>
+
+        {/* Look principal */}
+        <div className="flex-1 relative bg-white">
+          <div className="relative w-full h-full">
+            <Image 
+              src={currentLook.image} 
+              alt={currentLook.title}
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+        </div>
+
+        {/* Info en bas - Background blanc */}
+        <div className="bg-white px-4 py-4 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white font-semibold">
+                {currentLook.creator.name[0]}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">{currentLook.creator.name}</p>
+                <p className="text-sm text-gray-500">{currentLook.creator.username}</p>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              ♡ {currentLook.likes.toLocaleString()}
+            </div>
+          </div>
+
+          <h2 className="font-bold text-lg text-gray-900 mb-1">{currentLook.title}</h2>
+          
+          <div className="flex gap-2 mb-4">
+            {currentLook.tags.slice(0, 2).map(tag => (
+              <span key={tag} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                #{tag}
+              </span>
+            ))}
+          </div>
+
+          {/* Bouton Skip */}
+          <button 
+            onClick={skipToNext}
+            className="w-full py-3 bg-gray-900 text-white rounded-full font-semibold hover:bg-gray-800 transition-colors"
+          >
+            SKIP
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // VERSION DESKTOP - Grille
   return (
     <main className="max-w-7xl mx-auto px-6 py-3">
       <h2 className="text-3xl font-bold text-center mb-1">Trouve ton look parfait</h2>
@@ -36,10 +118,10 @@ export default function HomePage() {
 
       <div className="flex justify-center gap-2 mb-3">
         <button className="px-5 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium">Tous</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Naturel</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Glamour</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Soiree</button>
-        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Tous les jours</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Natural</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Glam</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Bold</button>
+        <button className="px-5 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">Everyday</button>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
@@ -87,19 +169,12 @@ export default function HomePage() {
 
       <div className="text-center mt-4 flex justify-center gap-3">
         {currentRow > 1 && (
-          <button 
-            onClick={showPrevious} 
-            className="px-8 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 transition-colors"
-          >
+          <button onClick={showPrevious} className="px-8 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 transition-colors">
             Voir moins de looks
           </button>
         )}
-        
         {currentRow < totalRows && (
-          <button 
-            onClick={showNext} 
-            className="px-8 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 transition-colors"
-          >
+          <button onClick={showNext} className="px-8 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 transition-colors">
             Voir plus de looks
           </button>
         )}
