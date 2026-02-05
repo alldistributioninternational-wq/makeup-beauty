@@ -22,7 +22,7 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
   }
 
   useEffect(() => {
-    if (videoRef.current && look.video) {
+    if (videoRef.current && look.videoUrl) {
       const playVideo = async () => {
         try {
           await videoRef.current?.play()
