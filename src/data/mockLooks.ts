@@ -1,4 +1,4 @@
-// src/data/mockLooks.ts
+// /src/data/mockLooks.ts
 
 import { Look } from '@/types/look.types';
 
@@ -8,6 +8,7 @@ export const mockLooks: Look[] = [
     title: 'Natural Glow Everyday',
     description: 'Mon look quotidien pour un teint frais et lumineux en 10 minutes ! Parfait pour le bureau ou un brunch.',
     image: '/images/looks/Look1.jpg',
+    video: '/video/look1.mp4',
     creator: {
       name: 'Sarah Martinez',
       username: '@sarahmakeup'
@@ -29,6 +30,7 @@ export const mockLooks: Look[] = [
     title: 'Soft Glam Evening',
     description: 'Un look glamour mais pas trop pour vos soirées. Élégant et facile à porter !',
     image: '/images/looks/Look2.jpg',
+    video: '/video/look2.mp4',
     creator: {
       name: 'Emma Johnson',
       username: '@emmaglam'
@@ -52,6 +54,7 @@ export const mockLooks: Look[] = [
     title: 'Bold Red Lip',
     description: 'THE red lip classique qui fait toujours son effet. Simple mais puissant !',
     image: '/images/looks/Look3.jpg',
+    video: '/video/look3.mp4',
     creator: {
       name: 'Léa Dubois',
       username: '@lea_makeup'
@@ -72,6 +75,7 @@ export const mockLooks: Look[] = [
     title: 'Sun-Kissed Bronze',
     description: 'Look bronzé parfait pour l\'été ! Des joues sunkissed et un glow naturel.',
     image: '/images/looks/Look4.jpg',
+    video: '/video/look4.mp4',
     creator: {
       name: 'Jasmine Lee',
       username: '@jasmine_beauty'
@@ -93,6 +97,7 @@ export const mockLooks: Look[] = [
     title: 'Fresh Face No-Makeup',
     description: 'Le fameux "no-makeup makeup". Frais, reposé, naturel !',
     image: '/images/looks/Look5.jpg',
+    video: '/video/look5.mp4',
     creator: {
       name: 'Sophie Bernard',
       username: '@sophienaturel'
@@ -114,6 +119,7 @@ export const mockLooks: Look[] = [
     title: 'Berry Lips Fall Vibes',
     description: 'Les vibes d\'automne avec une bouche berry parfaite. Cozy et chic !',
     image: '/images/looks/Look6.jpg',
+    video: '/video/look6.mp4',
     creator: {
       name: 'Maya Patel',
       username: '@maya_fallmakeup'

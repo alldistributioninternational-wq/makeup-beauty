@@ -13,10 +13,10 @@ import { ArrowLeft, CreditCard, Lock } from 'lucide-react';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, getTotal, clearCart } = useCartStore();
+  const { items, getTotalPrice, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const total = getTotal();
+  const total = getTotalPrice();
   const shipping = total > 50 ? 0 : 5.99;
   const finalTotal = total + shipping;
 

@@ -1,7 +1,6 @@
 // src/app/(main)/cart/page.tsx
 // @ts-nocheck
 
-
 'use client';
 
 import Link from 'next/link';
@@ -11,9 +10,9 @@ import { getProductById } from '@/data/mockProducts';
 import { ArrowLeft, Trash2, Plus, Minus } from 'lucide-react';
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, getTotal, clearCart } = useCartStore();
+  const { items, updateQuantity, removeItem, getTotalPrice, clearCart } = useCartStore();
 
-  const total = getTotal();
+  const total = getTotalPrice();
   const shipping = total > 50 ? 0 : 5.99;
   const finalTotal = total + shipping;
 

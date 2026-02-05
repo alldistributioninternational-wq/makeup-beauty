@@ -1,3 +1,4 @@
+// src/app/(main)/page.tsx
 // @ts-nocheck
 "use client";
 
@@ -5,16 +6,24 @@ import { useState, useEffect } from 'react';
 import { mockLooks } from '@/data/mockLooks';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Heart } from 'lucide-react';
+import { useSavedLooksStore } from '@/store/saved-looks.store';
 
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [currentLookIndex, setCurrentLookIndex] = useState(0);
   const [currentRow, setCurrentRow] = useState(1);
+  const [mounted, setMounted] = useState(false);
+  
+  // IMPORTANT : Récupère directement savedLookIds pour forcer le re-render
+  const savedLookIds = useSavedLooksStore((state) => state.savedLookIds);
+  const toggleLook = useSavedLooksStore((state) => state.toggleLook);
   
   const LOOKS_PER_ROW = 4;
   const totalRows = Math.ceil(mockLooks.length / LOOKS_PER_ROW);
 
   useEffect(() => {
+    setMounted(true);
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -42,7 +51,15 @@ export default function HomePage() {
     }
   };
 
+  const handleToggleLike = (lookId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLook(lookId);
+  };
+
   const currentLook = mockLooks[currentLookIndex];
+  // Vérifie directement avec savedLookIds au lieu de isLookSaved
+  const isCurrentLookLiked = mounted && savedLookIds.includes(currentLook.id);
 
   // VERSION MOBILE
   if (isMobile) {
@@ -67,17 +84,35 @@ export default function HomePage() {
 
         {/* Look cliquable - image seule */}
         <div className="flex-1 flex flex-col justify-center px-4 bg-white">
-          <Link href={`/feed/${currentLook.id}`} className="relative w-full max-w-md mx-auto aspect-square rounded-t-2xl overflow-hidden block">
-            <Image 
-              src={currentLook.image} 
-              alt={currentLook.title}
-              fill
-              className="object-cover"
-              priority
-            />
-          </Link>
+          <div className="relative w-full max-w-md mx-auto">
+            <Link href={`/feed/${currentLook.id}`} className="relative w-full aspect-square rounded-t-2xl overflow-hidden block">
+              <Image 
+                src={currentLook.image} 
+                alt={currentLook.title}
+                fill
+                className="object-cover"
+                priority
+              />
+            </Link>
 
-          {/* Box noire avec info et bouton SKIP - collé à l'image */}
+            {/* Bouton Like en haut à droite de l'image */}
+            {mounted && (
+              <button
+                onClick={(e) => handleToggleLike(currentLook.id, e)}
+                className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+              >
+                <Heart 
+                  className={`w-6 h-6 transition-colors ${
+                    isCurrentLookLiked 
+                      ? 'fill-pink-500 text-pink-500' 
+                      : 'text-gray-700'
+                  }`}
+                />
+              </button>
+            )}
+          </div>
+
+          {/* Box noire avec info et 2 boutons - collé à l'image */}
           <div className="w-full max-w-md mx-auto bg-black rounded-b-2xl p-4 pb-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -95,13 +130,30 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Bouton Skip à l'intérieur de la box noire */}
-            <button 
-              onClick={skipToNext}
-              className="mx-auto block w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-sm hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
-            >
-              SKIP
-            </button>
+            {/* 2 Boutons : SKIP à gauche et Cœur à droite */}
+            <div className="flex items-center justify-center gap-6">
+              {/* Bouton Skip à gauche */}
+              <button 
+                onClick={skipToNext}
+                className="w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-sm hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
+              >
+                SKIP
+              </button>
+
+              {/* Bouton Cœur à droite */}
+              <button 
+                onClick={(e) => handleToggleLike(currentLook.id, e)}
+                className="w-20 h-20 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
+              >
+                <Heart 
+                  className={`w-10 h-10 transition-colors ${
+                    isCurrentLookLiked 
+                      ? 'fill-white text-white' 
+                      : 'text-white'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -125,50 +177,72 @@ export default function HomePage() {
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        {currentLooks.map((look) => (
-          <Link 
-            key={look.id} 
-            href={`/feed/${look.id}`}
-            className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow block"
-          >
-            <div className="relative aspect-[3/4]">
-              <Image 
-                src={look.image} 
-                alt={look.title}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                    {look.creator.name[0]}
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-semibold">{look.creator.name}</p>
-                    <p className="text-white/80 text-xs">{look.creator.username}</p>
+        {currentLooks.map((look) => {
+          // Vérifie directement avec savedLookIds
+          const isLiked = mounted && savedLookIds.includes(look.id);
+          
+          return (
+            <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
+              {/* Bouton Like en haut à droite */}
+              {mounted && (
+                <button
+                  onClick={(e) => handleToggleLike(look.id, e)}
+                  className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                >
+                  <Heart 
+                    className={`w-6 h-6 transition-colors ${
+                      isLiked 
+                        ? 'fill-pink-500 text-pink-500' 
+                        : 'text-gray-700'
+                    }`}
+                  />
+                </button>
+              )}
+
+              <Link 
+                href={`/feed/${look.id}`}
+                className="block"
+              >
+                <div className="relative aspect-[3/4]">
+                  <Image 
+                    src={look.image} 
+                    alt={look.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
+                        {look.creator.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-semibold">{look.creator.name}</p>
+                        <p className="text-white/80 text-xs">{look.creator.username}</p>
+                      </div>
+                    </div>
+                    <h3 className="text-white font-bold">{look.title}</h3>
+                    {currentRow > 1 && (
+                      <>
+                        <div className="flex gap-2 mt-1">
+                          {look.tags.slice(0, 2).map(tag => (
+                            <span key={tag} className="text-xs bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-white text-xs">
+                          <span>♡ {look.likes}</span>
+                          <span>🛍️ {look.products.length} produits</span>
+                          <span className="bg-green-500/80 px-2 py-0.5 rounded capitalize">{look.difficulty}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
-                <h3 className="text-white font-bold">{look.title}</h3>
-                {currentRow > 1 && (
-                  <>
-                    <div className="flex gap-2 mt-1">
-                      {look.tags.slice(0, 2).map(tag => (
-                        <span key={tag} className="text-xs bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-white text-xs">
-                      <span>♡ {look.likes}</span>
-                      <span>🛍️ {look.products.length} produits</span>
-                      <span className="bg-green-500/80 px-2 py-0.5 rounded capitalize">{look.difficulty}</span>
-                    </div>
-                  </>
-                )}
-              </div>
+              </Link>
             </div>
-          </Link>
-        ))}
+          );
+        })}
       </div>
 
       <div className="text-center mt-4 flex justify-center gap-3">

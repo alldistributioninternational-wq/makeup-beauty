@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Search, X } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 
+// Fichier : src/components/layout/Navigation/Header.tsx
 export default function Header() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +38,20 @@ export default function Header() {
           </h1>
 
           <div className="flex items-center gap-3">
+            {/* NOUVEAU : Lien vers les looks sauvegardés */}
+            <Link 
+              href="/saved-looks" 
+              className="relative hover:opacity-80 transition-opacity"
+              title="Mes looks favoris"
+            >
+              <Image
+                src="/icons/heart.png"
+                alt="Favoris"
+                width={20}
+                height={20}
+              />
+            </Link>
+
             <Link 
               href="/shop" 
               className="relative hover:opacity-80 transition-opacity"
