@@ -28,7 +28,7 @@ export interface Look {
   // Propriétés optionnelles (si besoin)
   saves?: number;
   shares?: number;
-  videoUrl?: string;
+  video?: string;
   duration?: number;
 }
 
