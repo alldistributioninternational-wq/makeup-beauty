@@ -51,20 +51,29 @@ export default function HomePage() {
     }
   };
 
+  // Bouton cœur EN HAUT (sur l'image) - Sauvegarde SEULEMENT, ne passe pas au suivant
   const handleToggleLike = (lookId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleLook(lookId);
   };
 
+  // Bouton cœur EN BAS (dans la box noire) - Sauvegarde ET passe au suivant
+  const handleMobileLikeAndNext = (lookId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLook(lookId); // Sauvegarde le look
+    skipToNext(); // Passe au look suivant
+  };
+
   const currentLook = mockLooks[currentLookIndex];
   // Vérifie directement avec savedLookIds au lieu de isLookSaved
   const isCurrentLookLiked = mounted && savedLookIds.includes(currentLook.id);
 
-  // VERSION MOBILE
+  // VERSION MOBILE - Avec scale 0.85 pour réduire la hauteur de 15%
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col scale-[0.85] origin-top">
         {/* Titre et description avec plus d'espace après le header */}
         <div className="px-4 pt-6 pb-3 text-center">
           <h2 className="text-2xl font-bold text-black mb-2">Trouve ton look parfait</h2>
@@ -95,7 +104,7 @@ export default function HomePage() {
               />
             </Link>
 
-            {/* Bouton Like en haut à droite de l'image */}
+            {/* Bouton Like en haut à droite de l'image - SEULEMENT sauvegarde */}
             {mounted && (
               <button
                 onClick={(e) => handleToggleLike(currentLook.id, e)}
@@ -130,19 +139,19 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 2 Boutons : SKIP à gauche et Cœur à droite */}
+            {/* 2 Boutons : Croix à gauche et Cœur à droite */}
             <div className="flex items-center justify-center gap-6">
-              {/* Bouton Skip à gauche */}
+              {/* Bouton Croix à gauche - Passe au look suivant SEULEMENT */}
               <button 
                 onClick={skipToNext}
-                className="w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-sm hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
+                className="w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-4xl hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
               >
-                SKIP
+                ×
               </button>
 
-              {/* Bouton Cœur à droite */}
+              {/* Bouton Cœur à droite - Sauvegarde ET passe au look suivant */}
               <button 
-                onClick={(e) => handleToggleLike(currentLook.id, e)}
+                onClick={(e) => handleMobileLikeAndNext(currentLook.id, e)}
                 className="w-20 h-20 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
               >
                 <Heart 

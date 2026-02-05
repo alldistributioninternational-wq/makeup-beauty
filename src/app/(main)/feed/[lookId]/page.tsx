@@ -15,6 +15,7 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
   const look = getLookById(lookId)
   const router = useRouter()
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
+  const [isMobile, setIsMobile] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   if (!look) {
@@ -22,17 +23,43 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
   }
 
   useEffect(() => {
+    // Détecter si on est sur mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  useEffect(() => {
     if (videoRef.current && look.video) {
+      const video = videoRef.current
+      
+      // Mobile = muted, Desktop = avec son
+      video.muted = isMobile
+      
       const playVideo = async () => {
         try {
-          await videoRef.current?.play()
+          await video.play()
         } catch (error) {
-          console.log('Autoplay bloqué:', error)
+          console.log('Erreur autoplay:', error)
+          // Si ça échoue en desktop, essayer en muted
+          if (!isMobile) {
+            video.muted = true
+            try {
+              await video.play()
+            } catch (e) {
+              console.log('Autoplay complètement bloqué')
+            }
+          }
         }
       }
+      
       playVideo()
     }
-  }, [look.video])
+  }, [look.video, isMobile])
 
   const toggleProductSelection = (productId: string, shadeId?: string) => {
     const key = shadeId ? `${productId}-${shadeId}` : productId
@@ -54,16 +81,13 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
 
   const handleBuyLook = () => {
     if (selectedProducts.size === 0) {
-      // Rediriger vers la page avec tous les produits du look
       router.push(`/checkout-look/${lookId}`)
     } else {
-      // Rediriger vers la page avec seulement les produits sélectionnés
       const selectedItems = Array.from(selectedProducts).join(',')
       router.push(`/checkout-look/${lookId}?selected=${selectedItems}`)
     }
   }
 
-  // Organiser les produits par catégorie en fonction de la catégorie dans mockLooks
   const categorizedProducts = {
     peau: look.products.filter(p => ['Teint', 'Correcteur', 'Poudre', 'Blush', 'Highlighter'].includes(p.category)),
     cils: look.products.filter(p => p.category === 'Mascara'),
@@ -143,9 +167,11 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
                 ref={videoRef}
                 src={look.video} 
                 className="h-full w-full object-cover"
-                controls
+                autoPlay
+                loop
                 playsInline
-                preload="metadata"
+                preload="auto"
+                controls
               />
             ) : (
               <img 
@@ -175,7 +201,6 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
               </p>
             </div>
 
-            {/* Message de sélection */}
             <div className="mb-6 rounded-lg bg-pink-50 p-4 border border-pink-200">
               <p className="text-sm font-medium text-pink-900">
                 ✨ Sélectionnez les produits du look que vous souhaitez acheter
@@ -190,14 +215,12 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
             <div>
               <h2 className="mb-4 text-xl font-bold text-gray-900">Produits utilisés</h2>
               
-              {/* Afficher les catégories dynamiquement */}
               {renderProductsByCategory(categorizedProducts.peau, 'Peau')}
               {renderProductsByCategory(categorizedProducts.yeux, 'Yeux')}
               {renderProductsByCategory(categorizedProducts.cils, 'Cils')}
               {renderProductsByCategory(categorizedProducts.lèvres, 'Lèvres')}
             </div>
 
-            {/* Bouton Acheter le Look */}
             <div className="sticky bottom-0 mt-8 border-t border-gray-200 bg-white pt-4 pb-6">
               <button
                 onClick={handleBuyLook}
