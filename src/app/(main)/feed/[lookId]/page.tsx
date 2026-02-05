@@ -32,7 +32,7 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
       }
       playVideo()
     }
-  }, [look.video])
+  }, [look.videoUrl])
 
   const toggleProductSelection = (productId: string, shadeId?: string) => {
     const key = shadeId ? `${productId}-${shadeId}` : productId
@@ -138,10 +138,10 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-gray-100">
-            {look.video ? (
+            {look.videoUrl ? (
               <video 
                 ref={videoRef}
-                src={look.video} 
+                src={look.videoUrl} 
                 className="h-full w-full object-cover"
                 controls
                 playsInline
