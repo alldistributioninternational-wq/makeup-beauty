@@ -11,6 +11,7 @@ import { useSavedLooksStore } from '@/store/saved-looks.store';
 
 export default function HomePage() {
   const [isMobile, setIsMobile] = useState(false);
+  const [currentLookIndex, setCurrentLookIndex] = useState(0);
   const [currentRow, setCurrentRow] = useState(1);
   const [mounted, setMounted] = useState(false);
   
@@ -42,21 +43,42 @@ export default function HomePage() {
     if (currentRow > 1) setCurrentRow(currentRow - 1);
   };
 
+  const skipToNext = () => {
+    if (currentLookIndex < mockLooks.length - 1) {
+      setCurrentLookIndex(currentLookIndex + 1);
+    } else {
+      setCurrentLookIndex(0);
+    }
+  };
+
+  // Bouton cœur EN HAUT (sur l'image) - Sauvegarde SEULEMENT, ne passe pas au suivant
   const handleToggleLike = (lookId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleLook(lookId);
   };
 
+  // Bouton cœur EN BAS (dans la box noire) - Sauvegarde ET passe au suivant
+  const handleMobileLikeAndNext = (lookId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLook(lookId); // Sauvegarde le look
+    skipToNext(); // Passe au look suivant
+  };
+
+  const currentLook = mockLooks[currentLookIndex];
+  // Vérifie directement avec savedLookIds au lieu de isLookSaved
+  const isCurrentLookLiked = mounted && savedLookIds.includes(currentLook.id);
+
   // Looks pour les sections spéciales
   const trendingLooks = mockLooks.slice(0, 3); // Looks 1, 2, 3
   const lipLooks = mockLooks.slice(3, 5); // Looks 4, 5
   const eyeLooks = mockLooks.slice(5, 6); // Look 6
 
-  // VERSION MOBILE
+  // VERSION MOBILE - Style Tinder
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-white flex flex-col">
         {/* Titre et description */}
         <div className="px-4 pt-6 pb-3 text-center">
           <h2 className="text-2xl font-bold text-black mb-2">Trouve ton look parfait</h2>
@@ -66,7 +88,7 @@ export default function HomePage() {
         </div>
 
         {/* Filtres */}
-        <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide mb-6">
+        <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide">
           <button className="px-3 py-1.5 bg-gray-900 text-white rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous</button>
           <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Naturel</button>
           <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Glamour</button>
@@ -74,184 +96,78 @@ export default function HomePage() {
           <button className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0">Tous les jours</button>
         </div>
 
-        {/* Grille de looks principale */}
-        <div className="px-4 mb-8">
-          <div className="grid grid-cols-2 gap-3">
-            {currentLooks.map((look) => {
-              const isLiked = mounted && savedLookIds.includes(look.id);
-              return (
-                <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                  {mounted && (
-                    <button
-                      onClick={(e) => handleToggleLike(look.id, e)}
-                      className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                    >
-                      <Heart 
-                        className={`w-5 h-5 transition-colors ${
-                          isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                        }`}
-                      />
-                    </button>
-                  )}
-                  <Link href={`/feed/${look.id}`} className="block">
-                    <div className="relative aspect-[3/4]">
-                      <Image 
-                        src={look.image} 
-                        alt={look.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </Link>
+        {/* Look cliquable - image seule */}
+        <div className="flex-1 flex flex-col justify-center px-4 bg-white">
+          <div className="relative w-full max-w-md mx-auto">
+            <Link href={`/feed/${currentLook.id}`} className="relative w-full aspect-square rounded-t-2xl overflow-hidden block">
+              <Image 
+                src={currentLook.image} 
+                alt={currentLook.title}
+                fill
+                className="object-cover"
+                priority
+              />
+            </Link>
+
+            {/* Bouton Like en haut à droite de l'image - SEULEMENT sauvegarde */}
+            {mounted && (
+              <button
+                onClick={(e) => handleToggleLike(currentLook.id, e)}
+                className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+              >
+                <Heart 
+                  className={`w-6 h-6 transition-colors ${
+                    isCurrentLookLiked 
+                      ? 'fill-pink-500 text-pink-500' 
+                      : 'text-gray-700'
+                  }`}
+                />
+              </button>
+            )}
+          </div>
+
+          {/* Box noire avec info et 2 boutons - collé à l'image */}
+          <div className="w-full max-w-md mx-auto bg-black rounded-b-2xl p-4 pb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
+                  {currentLook.creator.name[0]}
                 </div>
-              );
-            })}
-          </div>
+                <div>
+                  <p className="font-bold text-white text-sm">{currentLook.creator.name}</p>
+                  <p className="text-xs text-gray-300">{currentLook.creator.username}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-white text-sm">♡</span>
+                <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
+              </div>
+            </div>
 
-          <div className="text-center mt-6 flex flex-col gap-3">
-            {currentRow > 1 && (
-              <button onClick={showPrevious} className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 text-sm">
-                Voir moins de looks
+            {/* 2 Boutons : Croix à gauche et Cœur à droite */}
+            <div className="flex items-center justify-center gap-6">
+              {/* Bouton Croix à gauche - Passe au look suivant SEULEMENT */}
+              <button 
+                onClick={skipToNext}
+                className="w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-4xl hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
+              >
+                ×
               </button>
-            )}
-            {currentRow < totalRows && (
-              <button onClick={showNext} className="px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium text-gray-800 text-sm">
-                Voir plus de looks
+
+              {/* Bouton Cœur à droite - Sauvegarde ET passe au look suivant */}
+              <button 
+                onClick={(e) => handleMobileLikeAndNext(currentLook.id, e)}
+                className="w-20 h-20 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
+              >
+                <Heart 
+                  className={`w-10 h-10 transition-colors ${
+                    isCurrentLookLiked 
+                      ? 'fill-white text-white' 
+                      : 'text-white'
+                  }`}
+                />
               </button>
-            )}
-          </div>
-        </div>
-
-        {/* NOUVELLES SECTIONS EN BAS */}
-        <div className="px-4 py-8">
-          {/* Titre principal */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-black mb-3">UNE NOUVELLE FAÇON DE SHOPPER LA BEAUTÉ EN LIGNE.</h1>
-            <p className="text-sm text-gray-700 leading-relaxed">
-              Parcourir des looks sur les réseaux sociaux, regarder des tutoriels et aller en magasin. 
-              Qui a le temps pour tout ça ? Certainement pas vous, alors nous réunissons vos influenceurs préférés, 
-              leurs looks les plus tendance et tutoriels et produits faciles à acheter, le tout en un seul endroit.
-            </p>
-          </div>
-
-          {/* LOOKS TENDANCES */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-bold text-black mb-6">LOOKS TENDANCES</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {trendingLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">
-              Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
-              ont conquis notre communauté et définissent les tendances beauté actuelles.
-            </p>
-          </div>
-
-          {/* TOP LOOKS LÈVRES */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS LÈVRES</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {lipLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-sm text-gray-700 leading-relaxed">
-              Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
-              du nude naturel au rouge statement en passant par les glossy lips tendance.
-            </p>
-          </div>
-
-          {/* TOP LOOKS YEUX */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS YEUX</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {eyeLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-sm text-gray-700 leading-relaxed">
-              Mettez vos yeux en valeur avec nos looks yeux les plus spectaculaires. 
-              Smokey eye, cut crease, ou makeup coloré, trouvez l'inspiration parfaite.
-            </p>
           </div>
         </div>
       </div>
@@ -407,7 +323,7 @@ export default function HomePage() {
               );
             })}
           </div>
-          <p className="text-base text-gray-700 leading-relaxed">
+          <p className="text-lg text-gray-900 leading-relaxed font-medium">
             Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
             ont conquis notre communauté et définissent les tendances beauté actuelles.
           </p>
@@ -459,7 +375,7 @@ export default function HomePage() {
               );
             })}
           </div>
-          <p className="text-base text-gray-700 leading-relaxed">
+          <p className="text-lg text-gray-900 leading-relaxed font-medium">
             Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
             du nude naturel au rouge statement en passant par les glossy lips tendance.
           </p>
@@ -468,7 +384,7 @@ export default function HomePage() {
         {/* TOP LOOKS YEUX */}
         <div className="mb-16">
           <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS YEUX</h2>
-          <div className="grid grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-3 gap-6">
             {eyeLooks.map((look) => {
               const isLiked = mounted && savedLookIds.includes(look.id);
               return (
@@ -511,10 +427,6 @@ export default function HomePage() {
               );
             })}
           </div>
-          <p className="text-base text-gray-700 leading-relaxed">
-            Mettez vos yeux en valeur avec nos looks yeux les plus spectaculaires. 
-            Smokey eye, cut crease, ou makeup coloré, trouvez l'inspiration parfaite.
-          </p>
         </div>
       </div>
     </main>

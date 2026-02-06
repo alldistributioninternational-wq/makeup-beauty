@@ -310,32 +310,6 @@ export default function CheckoutLookPage({ params }: { params: Promise<{ lookId:
           <p className="text-lg text-gray-600">Sélectionnez les produits que vous souhaitez ajouter au panier</p>
         </div>
 
-        {/* Affichage carnation si déjà sélectionnée */}
-        {selectedSkinTone && hasSkinProducts() && (
-          <div className="mb-6 rounded-xl bg-gradient-to-r from-pink-50 to-purple-50 p-4 border-2 border-pink-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="h-12 w-12 rounded-full border-3 border-white shadow-lg" 
-                  style={{ backgroundColor: skinTones.find(t => t.id === selectedSkinTone)?.hex }}
-                />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Votre carnation de peau</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {skinTones.find(t => t.id === selectedSkinTone)?.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSkinToneModal(true)}
-                className="px-4 py-2 bg-white hover:bg-pink-50 text-pink-600 font-semibold rounded-lg border-2 border-pink-300 transition-colors flex items-center gap-2"
-              >
-                ✏️ Modifier
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Info box */}
         <div className="mb-6 rounded-lg bg-pink-50 p-4 border border-pink-200">
           <p className="text-sm font-medium text-pink-900">
