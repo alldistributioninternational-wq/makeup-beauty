@@ -1,10 +1,11 @@
-// src/middleware.ts
+// src/proxy.ts
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Votre logique de middleware ici
+// Changez "middleware" en "proxy"
+export function proxy(request: NextRequest) {
+  // Votre logique de proxy ici
   return NextResponse.next();
 }
 

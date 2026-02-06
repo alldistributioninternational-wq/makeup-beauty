@@ -88,6 +88,11 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
     }
   }
 
+  // Vérifier si un produit est de type teint/peau
+  const isSkinProduct = (category: string) => {
+    return ['Teint', 'Correcteur', 'Poudre'].includes(category)
+  }
+
   const categorizedProducts = {
     peau: look.products.filter(p => ['Teint', 'Correcteur', 'Poudre', 'Blush', 'Highlighter'].includes(p.category)),
     cils: look.products.filter(p => p.category === 'Mascara'),
@@ -108,6 +113,7 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
 
             const shade = product.shades?.find(s => s.id === item.shadeId)
             const isSelected = isProductSelected(product.id, item.shadeId)
+            const isSkin = isSkinProduct(item.category)
 
             return (
               <div key={`${item.productId}-${item.shadeId}`} className="flex gap-4 rounded-xl border border-gray-200 p-4">
@@ -121,12 +127,15 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
                 <div className="flex flex-1 flex-col">
                   <p className="font-semibold text-gray-900">{product.name}</p>
                   <p className="text-sm text-gray-500">{product.brand}</p>
-                  {shade && (
+                  
+                  {/* Afficher le shade UNIQUEMENT si ce n'est PAS un produit de peau */}
+                  {!isSkin && shade && (
                     <div className="mt-1 flex items-center gap-2">
                       <div className="h-4 w-4 rounded-full border border-gray-300" style={{ backgroundColor: shade.hex }} />
                       <span className="text-sm text-gray-600">{shade.name}</span>
                     </div>
                   )}
+                  
                   {item.note && <p className="mt-1 text-xs italic text-gray-500">{item.note}</p>}
                   <div className="mt-2 flex items-center justify-between">
                     <span className="font-bold text-gray-900">{product.price}€</span>

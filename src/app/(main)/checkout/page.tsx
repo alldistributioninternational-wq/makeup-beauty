@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -16,9 +16,48 @@ export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCartStore();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Récupérer la carnation sauvegardée
+  const [savedSkinTone, setSavedSkinTone] = useState<string | null>(null);
+
+  // Palette de carnations (même que checkout-look)
+  const skinTones = [
+    { id: '1', name: 'Très clair rosé', hex: '#FFE4D6' },
+    { id: '2', name: 'Clair rosé', hex: '#FFDCC5' },
+    { id: '3', name: 'Clair neutre', hex: '#FFD4B3' },
+    { id: '4', name: 'Clair chaud', hex: '#FFCBA4' },
+    { id: '5', name: 'Moyen clair rosé', hex: '#F5C6A5' },
+    { id: '6', name: 'Moyen clair neutre', hex: '#EAB896' },
+    { id: '7', name: 'Moyen clair chaud', hex: '#E0AC7E' },
+    { id: '8', name: 'Moyen neutre', hex: '#D4A276' },
+    { id: '9', name: 'Moyen chaud', hex: '#C99869' },
+    { id: '10', name: 'Moyen doré', hex: '#BE8E5C' },
+    { id: '11', name: 'Moyen foncé neutre', hex: '#B1824F' },
+    { id: '12', name: 'Moyen foncé chaud', hex: '#A47444' },
+    { id: '13', name: 'Foncé neutre', hex: '#8B6341' },
+    { id: '14', name: 'Foncé chaud', hex: '#7A5638' },
+    { id: '15', name: 'Très foncé neutre', hex: '#6B4A31' },
+    { id: '16', name: 'Très foncé chaud', hex: '#5D3F2A' },
+    { id: '17', name: 'Profond neutre', hex: '#4E3423' },
+    { id: '18', name: 'Profond chaud', hex: '#43291E' },
+    { id: '19', name: 'Très profond', hex: '#3A1F19' },
+    { id: '20', name: 'Ultra profond', hex: '#2C1614' },
+  ];
+
+  // Charger la carnation au montage du composant
+  useEffect(() => {
+    const tone = localStorage.getItem('userSkinTone');
+    setSavedSkinTone(tone);
+  }, []);
+
   const total = getTotalPrice();
   const shipping = total > 50 ? 0 : 5.99;
   const finalTotal = total + shipping;
+
+  // Vérifier si un produit est de type teint/peau
+  const isSkinProduct = (product: any) => {
+    if (!product) return false;
+    return ['foundation', 'concealer', 'powder'].includes(product.category);
+  };
 
   // Redirect si panier vide
   if (items.length === 0) {
@@ -189,6 +228,8 @@ export default function CheckoutPage() {
                     if (!product) return null;
 
                     const shade = product.shades?.find(s => s.id === item.shadeId);
+                    const isSkin = isSkinProduct(product);
+                    const skinTone = savedSkinTone ? skinTones.find(t => t.id === savedSkinTone) : null;
 
                     return (
                       <div
@@ -207,10 +248,25 @@ export default function CheckoutPage() {
                           <p className="text-sm font-semibold text-gray-900 line-clamp-1">
                             {product.name}
                           </p>
-                          {shade && (
-                            <p className="text-xs text-gray-500">{shade.name}</p>
+                          
+                          {/* Afficher SOIT la carnation (pour produits peau) SOIT le shade (pour autres produits) */}
+                          {isSkin && skinTone ? (
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <div 
+                                className="h-3.5 w-3.5 rounded-full border border-gray-300" 
+                                style={{ backgroundColor: skinTone.hex }}
+                              />
+                              <span className="text-xs text-gray-600 font-medium">
+                                {skinTone.name}
+                              </span>
+                            </div>
+                          ) : (
+                            shade && (
+                              <p className="text-xs text-gray-500">{shade.name}</p>
+                            )
                           )}
-                          <p className="text-sm text-gray-600">
+                          
+                          <p className="text-sm text-gray-600 mt-1">
                             Qté: {item.quantity} • {(product.price * item.quantity).toFixed(2)}€
                           </p>
                         </div>
