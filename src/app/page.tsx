@@ -170,6 +170,264 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+        {/* NOUVELLES SECTIONS EN BAS - MOBILE */}
+        <div className="px-4 py-8">
+          {/* Titre principal */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-black mb-3">UNE NOUVELLE FAÇON DE SHOPPER LA BEAUTÉ EN LIGNE.</h1>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Parcourir des looks sur les réseaux sociaux, regarder des tutoriels et aller en magasin. 
+              Qui a le temps pour tout ça ? Certainement pas vous, alors nous réunissons vos influenceurs préférés, 
+              leurs looks les plus tendance et tutoriels et produits faciles à acheter, le tout en un seul endroit.
+            </p>
+          </div>
+
+          {/* LOOKS TENDANCES */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">LOOKS TENDANCES</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {trendingLooks.map((look) => {
+                const isLiked = mounted && savedLookIds.includes(look.id);
+                return (
+                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {mounted && (
+                      <button
+                        onClick={(e) => handleToggleLike(look.id, e)}
+                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 transition-colors ${
+                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <Link href={`/feed/${look.id}`} className="block">
+                      <div className="relative aspect-[3/4]">
+                        <Image 
+                          src={look.image} 
+                          alt={look.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-base text-gray-900 leading-relaxed font-medium">
+              Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
+              ont conquis notre communauté et définissent les tendances beauté actuelles.
+            </p>
+          </div>
+
+          {/* TOP LOOKS LÈVRES */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS LÈVRES</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {lipLooks.map((look) => {
+                const isLiked = mounted && savedLookIds.includes(look.id);
+                return (
+                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {mounted && (
+                      <button
+                        onClick={(e) => handleToggleLike(look.id, e)}
+                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 transition-colors ${
+                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <Link href={`/feed/${look.id}`} className="block">
+                      <div className="relative aspect-[3/4]">
+                        <Image 
+                          src={look.image} 
+                          alt={look.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-base text-gray-900 leading-relaxed font-medium">
+              Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
+              du nude naturel au rouge statement en passant par les glossy lips tendance.
+            </p>
+          </div>
+
+          {/* TOP LOOKS YEUX */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS YEUX</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {eyeLooks.map((look) => {
+                const isLiked = mounted && savedLookIds.includes(look.id);
+                return (
+                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {mounted && (
+                      <button
+                        onClick={(e) => handleToggleLike(look.id, e)}
+                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 transition-colors ${
+                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <Link href={`/feed/${look.id}`} className="block">
+                      <div className="relative aspect-[3/4]">
+                        <Image 
+                          src={look.image} 
+                          alt={look.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* NOUVELLES SECTIONS EN BAS - MOBILE */}
+        <div className="px-4 py-8">
+          {/* Titre principal */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-black mb-3">UNE NOUVELLE FAÇON DE SHOPPER LA BEAUTÉ EN LIGNE.</h1>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Parcourir des looks sur les réseaux sociaux, regarder des tutoriels et aller en magasin. 
+              Qui a le temps pour tout ça ? Certainement pas vous, alors nous réunissons vos influenceurs préférés, 
+              leurs looks les plus tendance et tutoriels et produits faciles à acheter, le tout en un seul endroit.
+            </p>
+          </div>
+
+          {/* LOOKS TENDANCES */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">LOOKS TENDANCES</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {trendingLooks.map((look) => {
+                const isLiked = mounted && savedLookIds.includes(look.id);
+                return (
+                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {mounted && (
+                      <button
+                        onClick={(e) => handleToggleLike(look.id, e)}
+                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 transition-colors ${
+                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <Link href={`/feed/${look.id}`} className="block">
+                      <div className="relative aspect-[3/4]">
+                        <Image 
+                          src={look.image} 
+                          alt={look.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-base text-gray-900 leading-relaxed font-medium">
+              Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
+              ont conquis notre communauté et définissent les tendances beauté actuelles.
+            </p>
+          </div>
+
+          {/* TOP LOOKS LÈVRES */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS LÈVRES</h2>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {lipLooks.map((look) => {
+                const isLiked = mounted && savedLookIds.includes(look.id);
+                return (
+                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {mounted && (
+                      <button
+                        onClick={(e) => handleToggleLike(look.id, e)}
+                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 transition-colors ${
+                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <Link href={`/feed/${look.id}`} className="block">
+                      <div className="relative aspect-[3/4]">
+                        <Image 
+                          src={look.image} 
+                          alt={look.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-base text-gray-900 leading-relaxed font-medium">
+              Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
+              du nude naturel au rouge statement en passant par les glossy lips tendance.
+            </p>
+          </div>
+
+          {/* TOP LOOKS YEUX */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS YEUX</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {eyeLooks.map((look) => {
+                const isLiked = mounted && savedLookIds.includes(look.id);
+                return (
+                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                    {mounted && (
+                      <button
+                        onClick={(e) => handleToggleLike(look.id, e)}
+                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                      >
+                        <Heart 
+                          className={`w-5 h-5 transition-colors ${
+                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                          }`}
+                        />
+                      </button>
+                    )}
+                    <Link href={`/feed/${look.id}`} className="block">
+                      <div className="relative aspect-[3/4]">
+                        <Image 
+                          src={look.image} 
+                          alt={look.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
