@@ -2,10 +2,23 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// DON'T instantiate at module level - moved inside handler below
 
 export async function POST(request: Request) {
   try {
+    // Instantiate Resend inside the handler to avoid build-time errors
+    const apiKey = process.env.RESEND_API_KEY;
+    
+    if (!apiKey) {
+      console.error('❌ Missing RESEND_API_KEY environment variable');
+      return NextResponse.json(
+        { error: 'Service de newsletter non configuré' },
+        { status: 500 }
+      );
+    }
+
+    const resend = new Resend(apiKey);
+
     const { email } = await request.json();
 
     // Validation de l'email
