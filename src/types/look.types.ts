@@ -1,5 +1,4 @@
 // src/types/look.types.ts
-
 export interface LookProductItem {
   productId: string;
   category: string;
@@ -26,6 +25,7 @@ export interface Look {
   products: LookProductItem[];
   
   // Propriétés optionnelles (si besoin)
+  category?: string;
   saves?: number;
   shares?: number;
   video?: string;
@@ -33,6 +33,7 @@ export interface Look {
 }
 
 import type { Product } from './product.types';
+
 export interface LookWithProducts extends Look {
   productDetails: Product[];
 }

@@ -2,7 +2,7 @@
 
 'use client'
 
-import { use, useEffect } from 'react'
+import { use, useEffect, Suspense } from 'react'
 import { notFound, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getLookById } from '@/data/mockLooks'
@@ -11,8 +11,7 @@ import { ArrowLeft, ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
 import { useCartStore } from '@/store/cart.store'
 
-export default function CheckoutLookPage({ params }: { params: Promise<{ lookId: string }> }) {
-  const { lookId } = use(params)
+function CheckoutLookContent({ lookId }: { lookId: string }) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const look = getLookById(lookId)
@@ -450,5 +449,22 @@ export default function CheckoutLookPage({ params }: { params: Promise<{ lookId:
         }
       `}</style>
     </div>
+  )
+}
+
+export default function CheckoutLookPage({ params }: { params: Promise<{ lookId: string }> }) {
+  const { lookId } = use(params)
+  
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    }>
+      <CheckoutLookContent lookId={lookId} />
+    </Suspense>
   )
 }
