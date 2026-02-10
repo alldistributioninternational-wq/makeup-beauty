@@ -1,0 +1,87 @@
+{
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "shop": "Shop",
+    "cart": "Cart",
+    "favorites": "Favorites",
+    "profile": "Profile"
+  },
+  "homepage": {
+    "title": "Find your perfect look",
+    "subtitle": "Get inspired by our community looks and buy the products directly.",
+    "searchPlaceholder": "Search looks (ex: evening, natural, glamour...)",
+    "searchResults": "Results for \"{query}\" • {count} look(s) found",
+    "filters": {
+      "all": "All",
+      "natural": "Natural",
+      "glamour": "Glamour",
+      "evening": "Evening",
+      "everyday": "Everyday"
+    },
+    "sections": {
+      "trending": "TRENDING LOOKS",
+      "trendingDesc": "Discover the most popular looks of the moment. These inspiring creations have conquered our community and define current beauty trends.",
+      "lips": "TOP LIP LOOKS",
+      "lipsDesc": "Perfectly enhanced lips! Explore our favorite lip looks, from natural nudes to statement reds and trendy glossy lips.",
+      "eyes": "TOP EYE LOOKS"
+    },
+    "hero": {
+      "title": "A NEW WAY TO SHOP BEAUTY ONLINE.",
+      "description": "Browsing looks on social media, watching tutorials and going to stores. Who has time for that? Certainly not you, so we bring together your favorite influencers, their trendiest looks and tutorials, and easy-to-buy products, all in one place."
+    }
+  },
+  "aboutUs": {
+    "title": "MAKEUP FOR PEOPLE WHO DON'T APOLOGIZE FOR THEIR HIGH STANDARDS",
+    "subtitle": "Welcome to Ilma Skin - Where beauty meets boldness",
+    "story": "Our Story",
+    "mission": "Our Mission",
+    "values": "Our Values",
+    "difference": "Our Difference",
+    "stats": "Ilma Skin in numbers",
+    "cta": "Ready to raise your standards?",
+    "ctaButton": "Discover looks",
+    "profileButton": "Personalize my profile"
+  },
+  "quiz": {
+    "title": "Personalize your profile",
+    "subtitle": "5 questions • 2 minutes • Personalized looks",
+    "start": "Start quiz",
+    "next": "Next",
+    "finish": "See my looks",
+    "retake": "Retake quiz",
+    "results": "Your personalized looks",
+    "viewAll": "View all looks",
+    "questions": {
+      "age": "What is your age range?",
+      "brands": "What are your favorite brands?",
+      "frequency": "How often do you wear makeup?",
+      "budget": "What is your monthly beauty budget?",
+      "skinType": "What is your skin type?"
+    }
+  },
+  "newsletter": {
+    "title": "WANT MORE?",
+    "subtitle": "GET 10% OFF YOUR FIRST PURCHASE",
+    "description": "Let's make it official. Join us for exclusive access to unmissable product launches, trending news, pop-ups and more. Oh, and you'll get 10% off your first purchase. Convinced?",
+    "placeholder": "Enter your email",
+    "button": "ACCEPT AND SUBMIT",
+    "consent": "By checking this box and clicking \"accept and submit\", I agree to receive marketing emails from IL MAKIAGE to my email address and to the Terms and Conditions and Privacy Policy",
+    "success": "✅ Successfully subscribed! Check your inbox.",
+    "error": "Please accept the terms to continue",
+    "loading": "SENDING..."
+  },
+  "footer": {
+    "country": "UNITED STATES",
+    "language": "Language",
+    "faq": "FAQ",
+    "returns": "Exchanges & Returns",
+    "account": "My account",
+    "about": "About",
+    "contact": "Contact us",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy",
+    "doNotSell": "Do not sell my information",
+    "copyright": "© 2026 Oddify Global Ltd. d/b/a IL MAKIAGE PRO MAKEUP NY. ALL RIGHTS RESERVED"
+  }
+}

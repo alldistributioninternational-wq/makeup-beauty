@@ -1,0 +1,87 @@
+{
+  "navigation": {
+    "home": "Startseite",
+    "about": "Über uns",
+    "shop": "Shop",
+    "cart": "Warenkorb",
+    "favorites": "Favoriten",
+    "profile": "Profil"
+  },
+  "homepage": {
+    "title": "Finde deinen perfekten Look",
+    "subtitle": "Lass dich von den Looks unserer Community inspirieren und kaufe die Produkte direkt.",
+    "searchPlaceholder": "Looks suchen (z.B.: Abend, natürlich, glamourös...)",
+    "searchResults": "Ergebnisse für \"{query}\" • {count} Look(s) gefunden",
+    "filters": {
+      "all": "Alle",
+      "natural": "Natürlich",
+      "glamour": "Glamourös",
+      "evening": "Abend",
+      "everyday": "Alltag"
+    },
+    "sections": {
+      "trending": "TRENDING LOOKS",
+      "trendingDesc": "Entdecke die beliebtesten Looks des Moments. Diese inspirierenden Kreationen haben unsere Community erobert und definieren aktuelle Beauty-Trends.",
+      "lips": "TOP LIPPEN-LOOKS",
+      "lipsDesc": "Perfekt betonte Lippen! Entdecke unsere liebsten Lippen-Looks, von natürlichen Nudes bis zu Statement-Rottönen und trendigen Gloss-Lippen.",
+      "eyes": "TOP AUGEN-LOOKS"
+    },
+    "hero": {
+      "title": "EINE NEUE ART, BEAUTY ONLINE ZU SHOPPEN.",
+      "description": "Looks in sozialen Medien durchstöbern, Tutorials ansehen und in Geschäfte gehen. Wer hat dafür Zeit? Sicherlich nicht du, deshalb bringen wir deine Lieblings-Influencer, ihre trendigsten Looks und Tutorials sowie leicht zu kaufende Produkte an einem Ort zusammen."
+    }
+  },
+  "aboutUs": {
+    "title": "MAKEUP FÜR MENSCHEN, DIE SICH NICHT FÜR IHRE HOHEN STANDARDS ENTSCHULDIGEN",
+    "subtitle": "Willkommen bei Ilma Skin - Wo Schönheit auf Kühnheit trifft",
+    "story": "Unsere Geschichte",
+    "mission": "Unsere Mission",
+    "values": "Unsere Werte",
+    "difference": "Unser Unterschied",
+    "stats": "Ilma Skin in Zahlen",
+    "cta": "Bereit, deine Standards zu erhöhen?",
+    "ctaButton": "Looks entdecken",
+    "profileButton": "Mein Profil personalisieren"
+  },
+  "quiz": {
+    "title": "Personalisiere dein Profil",
+    "subtitle": "5 Fragen • 2 Minuten • Personalisierte Looks",
+    "start": "Quiz starten",
+    "next": "Weiter",
+    "finish": "Meine Looks ansehen",
+    "retake": "Quiz wiederholen",
+    "results": "Deine personalisierten Looks",
+    "viewAll": "Alle Looks ansehen",
+    "questions": {
+      "age": "In welcher Altersgruppe bist du?",
+      "brands": "Was sind deine Lieblingsmarken?",
+      "frequency": "Wie oft schminkst du dich?",
+      "budget": "Was ist dein monatliches Beauty-Budget?",
+      "skinType": "Was ist dein Hauttyp?"
+    }
+  },
+  "newsletter": {
+    "title": "WILLST DU MEHR?",
+    "subtitle": "ERHALTE 10% RABATT AUF DEINEN ERSTEN EINKAUF",
+    "description": "Machen wir es offiziell. Melde dich an für exklusiven Zugang zu unverzichtbaren Produkteinführungen, Trend-News, Pop-ups und mehr. Ach ja, und du erhältst 10% Rabatt auf deinen ersten Einkauf. Überzeugt?",
+    "placeholder": "Gib deine E-Mail ein",
+    "button": "AKZEPTIEREN UND ABSENDEN",
+    "consent": "Durch Ankreuzen dieses Kästchens und Klicken auf \"akzeptieren und absenden\" stimme ich zu, Marketing-E-Mails von IL MAKIAGE an meine E-Mail-Adresse zu erhalten und den Allgemeinen Geschäftsbedingungen und der Datenschutzrichtlinie",
+    "success": "✅ Erfolgreich abonniert! Überprüfe deinen Posteingang.",
+    "error": "Bitte akzeptiere die Bedingungen, um fortzufahren",
+    "loading": "SENDEN..."
+  },
+  "footer": {
+    "country": "DEUTSCHLAND",
+    "language": "Sprache",
+    "faq": "FAQ",
+    "returns": "Umtausch & Rücksendung",
+    "account": "Mein Konto",
+    "about": "Über uns",
+    "contact": "Kontakt",
+    "terms": "AGB",
+    "privacy": "Datenschutz",
+    "doNotSell": "Meine Informationen nicht verkaufen",
+    "copyright": "© 2026 Oddify Global Ltd. d/b/a IL MAKIAGE PRO MAKEUP NY. ALLE RECHTE VORBEHALTEN"
+  }
+}

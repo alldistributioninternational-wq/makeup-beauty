@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Search, X } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 // Fichier : src/components/layout/Navigation/Header.tsx
 export default function Header() {
@@ -12,14 +13,58 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cartItemCount, setCartItemCount] = useState(0);
   const getTotalItems = useCartStore((state) => state.getTotalItems);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     setCartItemCount(getTotalItems());
   }, [getTotalItems]);
 
+  // Charger la recherche depuis l'URL au chargement
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl);
+      setIsSearchOpen(true);
+    }
+  }, [searchParams]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Recherche:', searchQuery);
+    
+    if (!searchQuery.trim()) {
+      // Si la recherche est vide, retourner à la page d'accueil sans filtre
+      router.push('/');
+      setIsSearchOpen(false);
+      return;
+    }
+
+    // Rediriger vers la page d'accueil avec le paramètre de recherche
+    const searchUrl = `/?search=${encodeURIComponent(searchQuery.trim())}`;
+    router.push(searchUrl);
+    
+    // Fermer la barre après un court délai pour permettre la navigation
+    setTimeout(() => {
+      setIsSearchOpen(false);
+    }, 100);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    router.push('/');
+    setIsSearchOpen(false);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    const searchUrl = `/?search=${encodeURIComponent(suggestion)}`;
+    router.push(searchUrl);
+    
+    // Fermer la barre après un court délai
+    setTimeout(() => {
+      setIsSearchOpen(false);
+    }, 100);
   };
 
   return (
@@ -33,12 +78,14 @@ export default function Header() {
             <Search size={20} />
           </button>
 
-          <h1 className="text-xl font-bold text-gray-900">
-            Ilma Skin
-          </h1>
+          <Link href="/">
+            <h1 className="text-xl font-bold text-gray-900 cursor-pointer hover:text-pink-600 transition-colors">
+              Ilma Skin
+            </h1>
+          </Link>
 
           <div className="flex items-center gap-3">
-            {/* NOUVEAU : Lien vers les looks sauvegardés */}
+            {/* Lien vers les looks sauvegardés */}
             <Link 
               href="/saved-looks" 
               className="relative hover:opacity-80 transition-opacity"
@@ -47,6 +94,20 @@ export default function Header() {
               <Image
                 src="/icons/heart.png"
                 alt="Favoris"
+                width={20}
+                height={20}
+              />
+            </Link>
+
+            {/* Lien vers le profil personnalisé */}
+            <Link 
+              href="/personalise-profile" 
+              className="relative hover:opacity-80 transition-opacity"
+              title="Personnaliser mon profil"
+            >
+              <Image
+                src="/icons/genetic.png"
+                alt="Profil génétique"
                 width={20}
                 height={20}
               />
@@ -92,7 +153,7 @@ export default function Header() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher des produits, looks, marques..."
+                placeholder="Rechercher des looks (ex: soirée, naturel, glamour...)"
                 className="w-full px-4 py-2 pr-20 rounded-lg border-2 border-pink-200 focus:border-pink-500 focus:outline-none transition-colors"
                 autoFocus
               />
@@ -103,21 +164,36 @@ export default function Header() {
                 >
                   <Search size={16} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setIsSearchOpen(false)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X size={16} />
-                </button>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Effacer la recherche"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
             </form>
 
             {searchQuery && (
               <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-                <p className="text-sm text-gray-500">
-                  Suggestions pour "{searchQuery}"...
+                <p className="text-sm text-gray-600">
+                  Appuyez sur Entrée pour rechercher "{searchQuery}"
                 </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className="text-xs text-gray-500">Suggestions:</span>
+                  {['soirée', 'naturel', 'glamour', 'tous les jours'].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="text-xs bg-pink-100 text-pink-600 px-2 py-1 rounded-full hover:bg-pink-200 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

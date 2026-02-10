@@ -1,0 +1,87 @@
+{
+  "navigation": {
+    "home": "Inicio",
+    "about": "Acerca de",
+    "shop": "Tienda",
+    "cart": "Carrito",
+    "favorites": "Favoritos",
+    "profile": "Perfil"
+  },
+  "homepage": {
+    "title": "Encuentra tu look perfecto",
+    "subtitle": "Inspírate con los looks de nuestra comunidad y compra los productos directamente.",
+    "searchPlaceholder": "Buscar looks (ej: noche, natural, glamour...)",
+    "searchResults": "Resultados para \"{query}\" • {count} look(s) encontrado(s)",
+    "filters": {
+      "all": "Todos",
+      "natural": "Natural",
+      "glamour": "Glamour",
+      "evening": "Noche",
+      "everyday": "Diario"
+    },
+    "sections": {
+      "trending": "LOOKS TRENDING",
+      "trendingDesc": "Descubre los looks más populares del momento. Estas creaciones inspiradoras han conquistado nuestra comunidad y definen las tendencias de belleza actuales.",
+      "lips": "TOP LOOKS LABIOS",
+      "lipsDesc": "¡Labios perfectamente realzados! Explora nuestros looks de labios favoritos, desde nudes naturales hasta rojos statement y labios gloss de tendencia.",
+      "eyes": "TOP LOOKS OJOS"
+    },
+    "hero": {
+      "title": "UNA NUEVA FORMA DE COMPRAR BELLEZA EN LÍNEA.",
+      "description": "Navegar looks en redes sociales, ver tutoriales e ir a tiendas. ¿Quién tiene tiempo para eso? Seguramente tú no, por eso reunimos a tus influencers favoritos, sus looks más trendy y tutoriales, y productos fáciles de comprar, todo en un solo lugar."
+    }
+  },
+  "aboutUs": {
+    "title": "MAQUILLAJE PARA PERSONAS QUE NO SE DISCULPAN POR SUS ALTOS ESTÁNDARES",
+    "subtitle": "Bienvenido a Ilma Skin - Donde la belleza encuentra la audacia",
+    "story": "Nuestra Historia",
+    "mission": "Nuestra Misión",
+    "values": "Nuestros Valores",
+    "difference": "Nuestra Diferencia",
+    "stats": "Ilma Skin en números",
+    "cta": "¿Listo para elevar tus estándares?",
+    "ctaButton": "Descubrir looks",
+    "profileButton": "Personalizar mi perfil"
+  },
+  "quiz": {
+    "title": "Personaliza tu perfil",
+    "subtitle": "5 preguntas • 2 minutos • Looks personalizados",
+    "start": "Comenzar quiz",
+    "next": "Siguiente",
+    "finish": "Ver mis looks",
+    "retake": "Volver a hacer el quiz",
+    "results": "Tus looks personalizados",
+    "viewAll": "Ver todos los looks",
+    "questions": {
+      "age": "¿Cuál es tu rango de edad?",
+      "brands": "¿Cuáles son tus marcas favoritas?",
+      "frequency": "¿Con qué frecuencia te maquillas?",
+      "budget": "¿Cuál es tu presupuesto mensual de belleza?",
+      "skinType": "¿Cuál es tu tipo de piel?"
+    }
+  },
+  "newsletter": {
+    "title": "¿QUIERES MÁS?",
+    "subtitle": "OBTÉN 10% DE DESCUENTO EN TU PRIMERA COMPRA",
+    "description": "Hagámoslo oficial. Únete para acceso exclusivo a lanzamientos de productos imperdibles, noticias de tendencia, pop-ups y más. Ah, y obtendrás 10% de descuento en tu primera compra. ¿Convencido?",
+    "placeholder": "Ingresa tu email",
+    "button": "ACEPTAR Y ENVIAR",
+    "consent": "Al marcar esta casilla y hacer clic en \"aceptar y enviar\", acepto recibir correos de marketing de IL MAKIAGE a mi dirección de correo y los Términos y Condiciones y la Política de Privacidad",
+    "success": "✅ ¡Suscripción exitosa! Revisa tu bandeja de entrada.",
+    "error": "Por favor acepta los términos para continuar",
+    "loading": "ENVIANDO..."
+  },
+  "footer": {
+    "country": "ESPAÑA",
+    "language": "Idioma",
+    "faq": "FAQ",
+    "returns": "Devoluciones",
+    "account": "Mi cuenta",
+    "about": "Acerca de",
+    "contact": "Contacto",
+    "terms": "Términos y Condiciones",
+    "privacy": "Privacidad",
+    "doNotSell": "No vender mi información",
+    "copyright": "© 2026 Oddify Global Ltd. d/b/a IL MAKIAGE PRO MAKEUP NY. TODOS LOS DERECHOS RESERVADOS"
+  }
+}

@@ -6,6 +6,7 @@ export const mockLooks: Look[] = [
   {
     id: 'look_001',
     title: 'Natural Glow Everyday',
+    category: 'naturel', // ← AJOUTÉ
     description: 'Mon look quotidien pour un teint frais et lumineux en 10 minutes ! Parfait pour le bureau ou un brunch.',
     image: '/images/looks/Look1.jpg',
     video: '/video/look1.mp4',
@@ -14,7 +15,7 @@ export const mockLooks: Look[] = [
       username: '@sarahmakeup'
     },
     likes: 2847,
-    tags: ['natural', 'everyday', 'glowy'],
+    tags: ['natural', 'everyday', 'glowy', 'naturel', 'quotidien'],
     difficulty: 'easy',
     createdAt: '2024-01-15',
     products: [
@@ -28,6 +29,7 @@ export const mockLooks: Look[] = [
   {
     id: 'look_002',
     title: 'Soft Glam Evening',
+    category: 'glamour', // ← AJOUTÉ
     description: 'Un look glamour mais pas trop pour vos soirées. Élégant et facile à porter !',
     image: '/images/looks/Look2.jpg',
     video: '/video/look2.mp4',
@@ -36,7 +38,7 @@ export const mockLooks: Look[] = [
       username: '@emmaglam'
     },
     likes: 5621,
-    tags: ['glam', 'evening', 'date-night'],
+    tags: ['glam', 'evening', 'date-night', 'glamour', 'soirée'],
     difficulty: 'medium',
     createdAt: '2024-01-14',
     products: [
@@ -52,6 +54,7 @@ export const mockLooks: Look[] = [
   {
     id: 'look_003',
     title: 'Bold Red Lip',
+    category: 'soirée', // ← AJOUTÉ
     description: 'THE red lip classique qui fait toujours son effet. Simple mais puissant !',
     image: '/images/looks/Look3.jpg',
     video: '/video/look3.mp4',
@@ -60,7 +63,7 @@ export const mockLooks: Look[] = [
       username: '@lea_makeup'
     },
     likes: 4230,
-    tags: ['bold', 'red-lip', 'classic'],
+    tags: ['bold', 'red-lip', 'classic', 'soirée'],
     difficulty: 'easy',
     createdAt: '2024-01-13',
     products: [
@@ -73,6 +76,7 @@ export const mockLooks: Look[] = [
   {
     id: 'look_004',
     title: 'Sun-Kissed Bronze',
+    category: 'soirée', // ← AJOUTÉ
     description: 'Look bronzé parfait pour l\'été ! Des joues sunkissed et un glow naturel.',
     image: '/images/looks/Look4.jpg',
     video: '/video/look4.mp4',
@@ -81,7 +85,7 @@ export const mockLooks: Look[] = [
       username: '@jasmine_beauty'
     },
     likes: 3890,
-    tags: ['bronze', 'summer', 'sunkissed'],
+    tags: ['bronze', 'summer', 'sunkissed', 'soirée'],
     difficulty: 'medium',
     createdAt: '2024-01-12',
     products: [
@@ -95,6 +99,7 @@ export const mockLooks: Look[] = [
   {
     id: 'look_005',
     title: 'Fresh Face No-Makeup',
+    category: 'tous-les-jours', // ← AJOUTÉ
     description: 'Le fameux "no-makeup makeup". Frais, reposé, naturel !',
     image: '/images/looks/Look5.jpg',
     video: '/video/look5.mp4',
@@ -103,7 +108,7 @@ export const mockLooks: Look[] = [
       username: '@sophienaturel'
     },
     likes: 6102,
-    tags: ['natural', 'no-makeup', 'minimal'],
+    tags: ['natural', 'no-makeup', 'minimal', 'quotidien', 'tous les jours'],
     difficulty: 'easy',
     createdAt: '2024-01-11',
     products: [
@@ -117,6 +122,7 @@ export const mockLooks: Look[] = [
   {
     id: 'look_006',
     title: 'Berry Lips Fall Vibes',
+    category: 'tous-les-jours', // ← AJOUTÉ
     description: 'Les vibes d\'automne avec une bouche berry parfaite. Cozy et chic !',
     image: '/images/looks/Look6.jpg',
     video: '/video/look6.mp4',
@@ -125,7 +131,7 @@ export const mockLooks: Look[] = [
       username: '@maya_fallmakeup'
     },
     likes: 3456,
-    tags: ['fall', 'berry', 'cozy'],
+    tags: ['fall', 'berry', 'cozy', 'quotidien', 'tous les jours'],
     difficulty: 'easy',
     createdAt: '2024-01-10',
     products: [
@@ -138,7 +144,20 @@ export const mockLooks: Look[] = [
   },
 ];
 
+// CATÉGORIES DISPONIBLES
+export const LOOK_CATEGORIES = {
+  NATUREL: 'naturel',
+  GLAMOUR: 'glamour',
+  SOIREE: 'soirée',
+  TOUS_LES_JOURS: 'tous-les-jours',
+} as const;
+
 // Helper pour récupérer un look par ID
 export const getLookById = (id: string): Look | undefined => {
   return mockLooks.find(look => look.id === id);
+};
+
+// Helper pour filtrer les looks par catégorie
+export const getLooksByCategory = (category: string): Look[] => {
+  return mockLooks.filter(look => look.category === category);
 };

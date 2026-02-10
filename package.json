@@ -19,8 +19,10 @@
   "dependencies": {
     "lucide-react": "^0.562.0",
     "next": "^16.1.6",
+    "next-intl": "^4.8.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resend": "^6.9.1",
     "zustand": "^5.0.10"
   },
   "devDependencies": {

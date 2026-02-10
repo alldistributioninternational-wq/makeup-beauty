@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { mockLooks } from '@/data/mockLooks';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,6 +13,9 @@ import NewsletterSection from '@/components/layout/NewsletterSection';
 import Footer from '@/components/layout/Footer';
 
 export default function HomePage() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
+  
   const [isMobile, setIsMobile] = useState(false);
   const [currentLookIndex, setCurrentLookIndex] = useState(0);
   const [currentRow, setCurrentRow] = useState(1);
@@ -26,17 +30,57 @@ export default function HomePage() {
   
   const LOOKS_PER_ROW = 4;
 
-  // Filtrer les looks selon le filtre sélectionné
+  // Fonction pour normaliser les chaînes (enlever les accents)
+  const normalizeString = (str: string) => {
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  };
+
+  // Filtrer les looks selon le filtre sélectionné OU la recherche
   const getFilteredLooks = () => {
+    let looks = mockLooks;
+
+    // Si recherche active, filtrer par recherche
+    if (searchQuery) {
+      const query = normalizeString(searchQuery);
+      looks = mockLooks.filter(look => 
+        normalizeString(look.title).includes(query) ||
+        look.tags.some(tag => normalizeString(tag).includes(query)) ||
+        normalizeString(look.creator.name).includes(query) ||
+        (look.category && normalizeString(look.category).includes(query))
+      );
+      return looks;
+    }
+
+    // Sinon utiliser les filtres prédéfinis
     switch(selectedFilter) {
       case 'Naturel':
-        return [mockLooks[1]]; // Look 2
+        return mockLooks.filter(look => 
+          look.category === 'naturel' || 
+          look.tags.some(tag => normalizeString(tag) === 'naturel' || normalizeString(tag) === 'natural')
+        );
       case 'Glamour':
-        return [mockLooks[0]]; // Look 1
+        return mockLooks.filter(look => 
+          look.category === 'glamour' || 
+          look.tags.some(tag => normalizeString(tag) === 'glamour' || normalizeString(tag) === 'glam')
+        );
       case 'Soirée':
-        return mockLooks.slice(2, 4); // Looks 3 et 4
+        return mockLooks.filter(look => 
+          look.category === 'soirée' || 
+          look.tags.some(tag => normalizeString(tag) === 'soiree' || normalizeString(tag) === 'evening')
+        );
       case 'Tous les jours':
-        return mockLooks.slice(4); // Looks 5 et 6
+        return mockLooks.filter(look => 
+          look.category === 'tous-les-jours' || 
+          look.tags.some(tag => 
+            normalizeString(tag) === 'quotidien' || 
+            normalizeString(tag) === 'tous les jours' ||
+            normalizeString(tag) === 'everyday' ||
+            normalizeString(tag) === 'casual'
+          )
+        );
       default:
         return mockLooks; // Tous
     }
@@ -67,6 +111,14 @@ export default function HomePage() {
     setViewedLooks([]);
     setShowExhaustedMessage(false);
   }, [selectedFilter]);
+
+  // Réinitialiser l'index quand la recherche change
+  useEffect(() => {
+    setCurrentLookIndex(0);
+    setCurrentRow(1);
+    setViewedLooks([]);
+    setShowExhaustedMessage(false);
+  }, [searchQuery]);
 
   const currentLooks = filteredLooks.slice(
     (currentRow - 1) * LOOKS_PER_ROW,
@@ -199,10 +251,19 @@ export default function HomePage() {
           </button>
         </div>
 
+        {/* Message de recherche active */}
+        {searchQuery && (
+          <div className="mx-4 mt-2 mb-2 px-4 py-2 bg-pink-50 border border-pink-200 rounded-lg">
+            <p className="text-sm text-pink-800">
+              🔍 Résultats pour "<span className="font-semibold">{searchQuery}</span>" • {filteredLooks.length} look{filteredLooks.length > 1 ? 's' : ''} trouvé{filteredLooks.length > 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
         {/* Look cliquable - image seule - RÉDUIT DE 15% */}
         {!showExhaustedMessage && currentLook ? (
           <div className="flex flex-col justify-center px-4 bg-white py-2">
-            <div className="relative w-full max-w-md mx-auto" style={{ maxHeight: '85vh' }}>
+            <div className="relative w-full max-w-md mx-auto" style={{ maxHeight: '72vh' }}>
               <Link href={`/feed/${currentLook.id}`} className="relative w-full aspect-square rounded-t-2xl overflow-hidden block">
                 <Image 
                   src={currentLook.image} 
@@ -296,6 +357,9 @@ export default function HomePage() {
             </div>
           </div>
         ) : null}
+
+        {/* Espace vide après le Tinder-like form */}
+        <div className="h-12"></div>
 
         {/* SECTIONS EN BAS - MOBILE */}
         <div className="px-4 py-8">
@@ -426,34 +490,32 @@ export default function HomePage() {
           </div>
 
           {/* SECTION HERO - MOBILE - À LA FIN */}
-          <div className="w-full -mx-4 bg-pink-500 py-12 px-4 mt-12">
-            <div className="max-w-md mx-auto">
-              <div className="grid grid-cols-2 gap-4 items-center">
-                {/* Image à gauche */}
-                <div className="relative aspect-[3/4] rounded-lg overflow-hidden">
-                  <Image
-                    src="/images/aboutus/aboutusimage.jpg"
-                    alt="Makeup hero"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                
-                {/* Texte à droite */}
-                <div className="text-white">
-                  <h2 className="text-2xl font-bold mb-3 leading-tight">
-                    MAQUILLAGE POUR LES GENS QUI NE S'EXCUSENT PAS POUR LEURS STANDARDS ÉLEVÉS.
-                  </h2>
-                  <p className="text-sm mb-4 leading-relaxed">
-                    Qui veut être peu exigeant de toute façon ? Et depuis quand posséder un seul baume à lèvres légèrement teinté est une bonne chose ?
-                  </p>
-                  <Link 
-                    href="/about"
-                    className="inline-block px-6 py-2 border-2 border-white text-white font-medium hover:bg-white hover:text-pink-500 transition-colors"
-                  >
-                    DÉCOUVREZ-NOUS
-                  </Link>
-                </div>
+          <div className="w-full -mx-4 bg-black py-12 px-6 mt-12">
+            <div className="flex flex-col">
+              {/* Texte en haut */}
+              <div className="text-white mb-8">
+                <h2 className="text-3xl font-bold mb-6 leading-tight">
+                  MAQUILLAGE POUR LES GENS QUI NE S'EXCUSENT PAS POUR LEURS STANDARDS ÉLEVÉS.
+                </h2>
+                <p className="text-sm mb-6 leading-relaxed">
+                  Qui veut être peu exigeant de toute façon ? Et depuis quand posséder un seul baume à lèvres légèrement teinté est une bonne chose ? À quiconque a lancé cette tendance "sans chichi", avec tout le respect que nous vous devons, nous pleurerions pour vous mais notre mascara est trop cher. C'est pourquoi nous serons audacieux et sans excuses en défendant l'esprit de toutes les personnes confiantes et prospères qui sont à parts égales style et substance. Le genre de personnes qui savent exactement ce qu'elles valent. Et exigent d'être traitées en conséquence.
+                </p>
+                <Link 
+                  href="/about-us"
+                  className="inline-block px-8 py-3 border-2 border-white text-white font-semibold hover:bg-white hover:text-black transition-colors text-sm"
+                >
+                  DÉCOUVREZ-NOUS
+                </Link>
+              </div>
+              
+              {/* Image en bas */}
+              <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
+                <Image
+                  src="/images/aboutus/aboutusimage.jpg"
+                  alt="Makeup hero"
+                  fill
+                  className="object-cover"
+                />
               </div>
             </div>
           </div>
@@ -520,6 +582,15 @@ export default function HomePage() {
             Tous les jours
           </button>
         </div>
+
+        {/* Message de recherche active - Desktop */}
+        {searchQuery && (
+          <div className="max-w-2xl mx-auto mt-4 mb-4 px-6 py-3 bg-pink-50 border border-pink-200 rounded-xl text-center">
+            <p className="text-base text-pink-800">
+              🔍 Résultats pour "<span className="font-semibold">{searchQuery}</span>" • {filteredLooks.length} look{filteredLooks.length > 1 ? 's' : ''} trouvé{filteredLooks.length > 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-4 gap-3 mb-8">
           {currentLooks.map((look) => {
@@ -782,7 +853,7 @@ export default function HomePage() {
                   Qui veut être peu exigeant de toute façon ? Et depuis quand posséder un seul baume à lèvres légèrement teinté est une bonne chose ? À quiconque a lancé cette tendance "sans chichi", avec tout le respect que nous vous devons, nous pleurerions pour vous mais notre mascara est trop cher. C'est pourquoi nous serons audacieux et sans excuses en défendant l'esprit de toutes les personnes confiantes et prospères qui sont à parts égales style et substance. Le genre de personnes qui savent exactement ce qu'elles valent. Et exigent d'être traitées en conséquence.
                 </p>
                 <Link 
-                  href="/about"
+                  href="/about-us"
                   className="inline-block px-8 py-3 border-2 border-white text-white font-medium hover:bg-white hover:text-pink-500 transition-colors text-lg"
                 >
                   DÉCOUVREZ-NOUS

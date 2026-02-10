@@ -7,12 +7,49 @@ import { Facebook, Instagram, Youtube } from 'lucide-react';
 export default function NewsletterSection() {
   const [email, setEmail] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && agreed) {
-      console.log('Email submitted:', email);
-      // Ici vous pouvez ajouter la logique d'envoi de l'email
+
+    // Validation
+    if (!agreed) {
+      setStatus('error');
+      setMessage('Veuillez accepter les conditions pour continuer');
+      return;
+    }
+
+    setStatus('loading');
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStatus('success');
+        setMessage(data.message || '🎉 Inscription réussie ! Vérifiez votre email.');
+        setEmail('');
+        setAgreed(false);
+        
+        // Réinitialiser après 5 secondes
+        setTimeout(() => {
+          setStatus('idle');
+          setMessage('');
+        }, 5000);
+      } else {
+        setStatus('error');
+        setMessage(data.error || 'Une erreur est survenue');
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage('Erreur de connexion. Veuillez réessayer.');
     }
   };
 
@@ -52,26 +89,40 @@ export default function NewsletterSection() {
         </div>
 
         {/* Formulaire Email */}
-        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-0 max-w-2xl mx-auto mb-8">
-          <input
-            type="email"
-            placeholder="Entrez votre email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="flex-1 px-6 py-4 bg-black border border-white text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
-            required
-          />
-          <button
-            type="submit"
-            disabled={!agreed}
-            className="px-8 py-4 bg-white text-black font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ACCEPTER ET SOUMETTRE
-          </button>
+        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto mb-4">
+          <div className="flex flex-col sm:flex-row gap-0">
+            <input
+              type="email"
+              placeholder="Entrez votre email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={status === 'loading'}
+              className="flex-1 px-6 py-4 bg-black border border-white text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:opacity-50"
+              required
+            />
+            <button
+              type="submit"
+              disabled={!agreed || status === 'loading'}
+              className="px-8 py-4 bg-white text-black font-bold hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {status === 'loading' ? 'ENVOI...' : 'ACCEPTER ET SOUMETTRE'}
+            </button>
+          </div>
+
+          {/* Message de statut */}
+          {message && (
+            <div className={`mt-4 p-4 rounded-lg ${
+              status === 'success' 
+                ? 'bg-green-500/20 border border-green-500/50 text-green-300' 
+                : 'bg-red-500/20 border border-red-500/50 text-red-300'
+            }`}>
+              <p className="text-sm font-medium">{message}</p>
+            </div>
+          )}
         </form>
 
         {/* Icônes réseaux sociaux */}
-        <div className="flex justify-center gap-6">
+        <div className="flex justify-center gap-6 mt-8">
           <a 
             href="https://facebook.com" 
             target="_blank" 
