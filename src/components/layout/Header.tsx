@@ -3,8 +3,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, X } from 'lucide-react';
+import { Search, X, LogOut } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
+import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 // Composant séparé qui utilise useSearchParams
@@ -12,7 +13,10 @@ function HeaderContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  
   const getTotalItems = useCartStore((state) => state.getTotalItems);
+  const { user, logout, initAuth } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -20,6 +24,11 @@ function HeaderContent() {
   useEffect(() => {
     setCartItemCount(getTotalItems());
   }, [getTotalItems]);
+
+  // Initialiser Firebase Auth
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   // Charger la recherche depuis l'URL au chargement
   useEffect(() => {
@@ -34,17 +43,14 @@ function HeaderContent() {
     e.preventDefault();
     
     if (!searchQuery.trim()) {
-      // Si la recherche est vide, retourner à la page d'accueil sans filtre
       router.push('/');
       setIsSearchOpen(false);
       return;
     }
 
-    // Rediriger vers la page d'accueil avec le paramètre de recherche
     const searchUrl = `/?search=${encodeURIComponent(searchQuery.trim())}`;
     router.push(searchUrl);
     
-    // Fermer la barre après un court délai pour permettre la navigation
     setTimeout(() => {
       setIsSearchOpen(false);
     }, 100);
@@ -61,11 +67,25 @@ function HeaderContent() {
     const searchUrl = `/?search=${encodeURIComponent(suggestion)}`;
     router.push(searchUrl);
     
-    // Fermer la barre après un court délai
     setTimeout(() => {
       setIsSearchOpen(false);
     }, 100);
   };
+
+  const handleLogout = async () => {
+    await logout();
+    setShowProfileMenu(false);
+    router.push('/');
+  };
+
+  // Fermer le menu quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = () => setShowProfileMenu(false);
+    if (showProfileMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showProfileMenu]);
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -143,6 +163,80 @@ function HeaderContent() {
                 </span>
               )}
             </Link>
+
+            {/* Icône Profile avec dropdown si connecté */}
+            <div className="relative">
+              {user ? (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowProfileMenu(!showProfileMenu);
+                    }}
+                    className="relative hover:opacity-80 transition-opacity"
+                    title="Mon profil"
+                  >
+                    {user.avatar_url ? (
+                      <Image
+                        src={user.avatar_url}
+                        alt="Mon profil"
+                        width={20}
+                        height={20}
+                        className="rounded-full"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {user.full_name?.[0] || user.email[0].toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showProfileMenu && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-900">{user.full_name || 'Utilisateur'}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                      <Link 
+                        href="/profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowProfileMenu(false)}
+                      >
+                        Mon profil
+                      </Link>
+                      <Link 
+                        href="/profile/orders"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowProfileMenu(false)}
+                      >
+                        Mes commandes
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                      >
+                        <LogOut size={16} />
+                        Déconnexion
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link 
+                  href="/profile" 
+                  className="relative hover:opacity-80 transition-opacity"
+                  title="Se connecter"
+                >
+                  <Image
+                    src="/icons/profil.png"
+                    alt="Se connecter"
+                    width={20}
+                    height={20}
+                  />
+                </Link>
+              )}
+            </div>
           </div>
         </div>
 
@@ -203,7 +297,6 @@ function HeaderContent() {
   );
 }
 
-// Fichier : src/components/layout/Navigation/Header.tsx
 export default function Header() {
   return (
     <Suspense fallback={
@@ -215,6 +308,7 @@ export default function Header() {
               <h1 className="text-xl font-bold text-gray-900">Ilma Skin</h1>
             </Link>
             <div className="flex items-center gap-3">
+              <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
               <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
               <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
               <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>

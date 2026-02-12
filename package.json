@@ -17,13 +17,20 @@
     "cache:clear": "rimraf .next/cache"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/supabase-js": "^2.95.3",
+    "date-fns": "^4.1.0",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.6.1",
     "lucide-react": "^0.562.0",
     "next": "^16.1.6",
     "next-intl": "^4.8.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hot-toast": "^2.6.0",
     "resend": "^6.9.1",
-    "zustand": "^5.0.10"
+    "stripe": "^20.3.1",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

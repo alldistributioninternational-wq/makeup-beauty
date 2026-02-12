@@ -32,12 +32,12 @@ export default function AboutPage() {
             <span className="font-medium">Retour</span>
           </Link>
 
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl">
+          {/*<h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl">
             MAKEUP FOR PEOPLE WHO DON'T APOLOGIZE FOR THEIR HIGH STANDARDS
-          </h1>
-          <p className="text-xl md:text-2xl text-white/90 max-w-3xl leading-relaxed drop-shadow-lg">
+          </h1>*/}
+         {/* <p className="text-xl md:text-2xl text-white/90 max-w-3xl leading-relaxed drop-shadow-lg">
             Bienvenue chez Ilma Skin - Où la beauté rencontre l'audace
-          </p>
+          </p>*/}
         </div>
       </section>
 
