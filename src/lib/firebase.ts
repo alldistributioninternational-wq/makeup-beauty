@@ -12,24 +12,14 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase (éviter la double initialisation)
-let app: FirebaseApp;
-let auth: Auth;
-let analytics: Analytics | null = null;
+// Initialiser Firebase (fonctionne côté serveur et client)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const auth = getAuth(app);
 
-if (typeof window !== 'undefined') {
-  // Code côté client uniquement
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  auth = getAuth(app);
-  
-  // Analytics uniquement côté client
-  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
-    analytics = getAnalytics(app);
-  }
-} else {
-  // Code côté serveur (fallback)
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  auth = getAuth(app);
+// Analytics uniquement côté client
+let analytics: Analytics | null = null;
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
+  analytics = getAnalytics(app);
 }
 
 export { app, auth, analytics };

@@ -83,7 +83,9 @@ export const useAuthStore = create<AuthState>()(
             error: null 
           });
         } catch (error: any) {
-          console.error('Register error:', error);
+          // ✅ Supprimer le console.error pour ne pas polluer la console
+          // console.error('Register error:', error);
+          
           let errorMessage = 'Erreur lors de l\'inscription';
           
           switch (error.code) {
@@ -105,7 +107,9 @@ export const useAuthStore = create<AuthState>()(
           }
           
           set({ loading: false, error: errorMessage });
-          throw error;
+          
+          // ✅ Ne pas re-throw l'erreur pour éviter qu'elle remonte
+          // throw error;
         }
       },
 
@@ -129,7 +133,9 @@ export const useAuthStore = create<AuthState>()(
             error: null 
           });
         } catch (error: any) {
-          console.error('Login error:', error);
+          // ✅ Supprimer le console.error
+          // console.error('Login error:', error);
+          
           let errorMessage = 'Erreur lors de la connexion';
           
           switch (error.code) {
@@ -157,7 +163,9 @@ export const useAuthStore = create<AuthState>()(
           }
           
           set({ loading: false, error: errorMessage });
-          throw error;
+          
+          // ✅ Ne pas re-throw l'erreur
+          // throw error;
         }
       },
 
@@ -168,9 +176,12 @@ export const useAuthStore = create<AuthState>()(
           await signOut(auth);
           set({ user: null, firebaseUser: null, loading: false });
         } catch (error: any) {
-          console.error('Logout error:', error);
+          // ✅ Supprimer le console.error
+          // console.error('Logout error:', error);
           set({ loading: false, error: 'Erreur lors de la déconnexion' });
-          throw error;
+          
+          // ✅ Ne pas re-throw l'erreur
+          // throw error;
         }
       },
 
