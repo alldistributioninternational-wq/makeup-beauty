@@ -23,7 +23,6 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   
-  // Actions
   register: (email: string, password: string, fullName: string, phone?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -34,17 +33,18 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       firebaseUser: null,
       loading: false,
       error: null,
 
-      // Initialiser l'écoute de l'état d'auth Firebase
       initAuth: () => {
-        onAuthStateChanged(auth, async (firebaseUser) => {
+        const authInstance = auth();
+        if (!authInstance) return;
+        
+        onAuthStateChanged(authInstance, async (firebaseUser) => {
           if (firebaseUser) {
-            // Utilisateur connecté
             const userProfile: UserProfile = {
               id: firebaseUser.uid,
               email: firebaseUser.email!,
@@ -53,28 +53,28 @@ export const useAuthStore = create<AuthState>()(
             };
             set({ user: userProfile, firebaseUser, loading: false });
           } else {
-            // Utilisateur déconnecté
             set({ user: null, firebaseUser: null, loading: false });
           }
         });
       },
 
-      // Inscription
       register: async (email: string, password: string, fullName: string, phone?: string) => {
+        const authInstance = auth();
+        if (!authInstance) {
+          set({ loading: false, error: 'Service d\'authentification non disponible' });
+          return;
+        }
+
         set({ loading: true, error: null });
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
           
-          // Créer le profil
           const userProfile: UserProfile = {
             id: userCredential.user.uid,
             email: email,
             full_name: fullName,
             phone: phone,
           };
-
-          // TODO: Sauvegarder dans Supabase plus tard
-          // await createUserProfile(userProfile);
 
           set({ 
             user: userProfile,
@@ -83,9 +83,6 @@ export const useAuthStore = create<AuthState>()(
             error: null 
           });
         } catch (error: any) {
-          // ✅ Supprimer le console.error pour ne pas polluer la console
-          // console.error('Register error:', error);
-          
           let errorMessage = 'Erreur lors de l\'inscription';
           
           switch (error.code) {
@@ -99,7 +96,7 @@ export const useAuthStore = create<AuthState>()(
               errorMessage = 'Format d\'email invalide';
               break;
             case 'auth/operation-not-allowed':
-              errorMessage = 'L\'authentification par email n\'est pas activée. Contactez le support.';
+              errorMessage = 'L\'authentification par email n\'est pas activée.';
               break;
             case 'auth/network-request-failed':
               errorMessage = 'Erreur de connexion. Vérifiez votre connexion internet.';
@@ -107,17 +104,19 @@ export const useAuthStore = create<AuthState>()(
           }
           
           set({ loading: false, error: errorMessage });
-          
-          // ✅ Ne pas re-throw l'erreur pour éviter qu'elle remonte
-          // throw error;
         }
       },
 
-      // Connexion
       login: async (email: string, password: string) => {
+        const authInstance = auth();
+        if (!authInstance) {
+          set({ loading: false, error: 'Service d\'authentification non disponible' });
+          return;
+        }
+
         set({ loading: true, error: null });
         try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
           
           const userProfile: UserProfile = {
             id: userCredential.user.uid,
@@ -133,55 +132,43 @@ export const useAuthStore = create<AuthState>()(
             error: null 
           });
         } catch (error: any) {
-          // ✅ Supprimer le console.error
-          // console.error('Login error:', error);
-          
           let errorMessage = 'Erreur lors de la connexion';
           
           switch (error.code) {
             case 'auth/invalid-credential':
-              errorMessage = 'Email ou mot de passe incorrect. Vérifiez vos identifiants.';
+              errorMessage = 'Email ou mot de passe incorrect.';
               break;
             case 'auth/user-not-found':
-              errorMessage = 'Aucun compte trouvé avec cet email. Créez un compte.';
+              errorMessage = 'Aucun compte trouvé avec cet email.';
               break;
             case 'auth/wrong-password':
-              errorMessage = 'Mot de passe incorrect. Réessayez.';
+              errorMessage = 'Mot de passe incorrect.';
               break;
             case 'auth/invalid-email':
               errorMessage = 'Format d\'email invalide';
               break;
             case 'auth/user-disabled':
-              errorMessage = 'Ce compte a été désactivé. Contactez le support.';
+              errorMessage = 'Ce compte a été désactivé.';
               break;
             case 'auth/too-many-requests':
               errorMessage = 'Trop de tentatives. Réessayez plus tard.';
               break;
-            case 'auth/network-request-failed':
-              errorMessage = 'Erreur de connexion. Vérifiez votre connexion internet.';
-              break;
           }
           
           set({ loading: false, error: errorMessage });
-          
-          // ✅ Ne pas re-throw l'erreur
-          // throw error;
         }
       },
 
-      // Déconnexion
       logout: async () => {
+        const authInstance = auth();
+        if (!authInstance) return;
+
         set({ loading: true, error: null });
         try {
-          await signOut(auth);
+          await signOut(authInstance);
           set({ user: null, firebaseUser: null, loading: false });
         } catch (error: any) {
-          // ✅ Supprimer le console.error
-          // console.error('Logout error:', error);
           set({ loading: false, error: 'Erreur lors de la déconnexion' });
-          
-          // ✅ Ne pas re-throw l'erreur
-          // throw error;
         }
       },
 
@@ -190,7 +177,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ user: state.user }), // Sauvegarder seulement le user
+      partialize: (state) => ({ user: state.user }),
     }
   )
 );
