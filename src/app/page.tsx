@@ -1,16 +1,35 @@
 // src/app/page.tsx
-// @ts-nocheck
+// Version Supabase + Cloudinary - Looks chargés depuis la base de données
+
 "use client";
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { mockLooks } from '@/data/mockLooks';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { useSavedLooksStore } from '@/store/saved-looks.store';
 import NewsletterSection from '@/components/layout/NewsletterSection';
 import Footer from '@/components/layout/Footer';
+import { supabase } from '@/lib/supabase';
+import { getCloudinaryUrl, getCloudinaryVideoUrl } from '@/lib/cloudinary';
+
+// Type Look depuis Supabase
+interface Look {
+  id: string;
+  title: string;
+  description?: string;
+  category?: string;
+  cloudinary_image_id: string | null;
+  cloudinary_video_id: string | null;
+  difficulty?: string;
+  likes?: number;
+  views?: number;
+  creator_name?: string;
+  creator_username?: string;
+  tags?: string[];
+  is_featured?: boolean;
+}
 
 // Composant séparé qui utilise useSearchParams
 function HomePageContent() {
@@ -25,13 +44,34 @@ function HomePageContent() {
   const [viewedLooks, setViewedLooks] = useState<string[]>([]);
   const [showExhaustedMessage, setShowExhaustedMessage] = useState(false);
   
-  // IMPORTANT : Récupère directement savedLookIds pour forcer le re-render
+  // ✅ NOUVEAU : State pour les looks depuis Supabase
+  const [allLooks, setAllLooks] = useState<Look[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const savedLookIds = useSavedLooksStore((state) => state.savedLookIds);
   const toggleLook = useSavedLooksStore((state) => state.toggleLook);
   
   const LOOKS_PER_ROW = 4;
 
-  // Fonction pour normaliser les chaînes (enlever les accents)
+  // ✅ CHARGER LES LOOKS DEPUIS SUPABASE
+  useEffect(() => {
+    async function fetchLooks() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('looks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setAllLooks(data);
+      }
+      setLoading(false);
+    }
+
+    fetchLooks();
+  }, []);
+
+  // Fonction pour normaliser les chaînes
   const normalizeString = (str: string) => {
     return str
       .toLowerCase()
@@ -39,63 +79,54 @@ function HomePageContent() {
       .replace(/[\u0300-\u036f]/g, "");
   };
 
-  // Filtrer les looks selon le filtre sélectionné OU la recherche
+  // Filtrer les looks
   const getFilteredLooks = () => {
-    let looks = mockLooks;
+    let looks = allLooks;
 
-    // Si recherche active, filtrer par recherche
     if (searchQuery) {
       const query = normalizeString(searchQuery);
-      looks = mockLooks.filter(look => 
+      looks = allLooks.filter(look => 
         normalizeString(look.title).includes(query) ||
-        look.tags.some(tag => normalizeString(tag).includes(query)) ||
-        normalizeString(look.creator.name).includes(query) ||
+        (look.tags && look.tags.some((tag: string) => normalizeString(tag).includes(query))) ||
+        (look.creator_name && normalizeString(look.creator_name).includes(query)) ||
         (look.category && normalizeString(look.category).includes(query))
       );
       return looks;
     }
 
-    // Sinon utiliser les filtres prédéfinis
     switch(selectedFilter) {
       case 'Naturel':
-        return mockLooks.filter(look => 
+        return allLooks.filter(look => 
           look.category === 'naturel' || 
-          look.tags.some(tag => normalizeString(tag) === 'naturel' || normalizeString(tag) === 'natural')
+          (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'naturel' || normalizeString(tag) === 'natural'))
         );
       case 'Glamour':
-        return mockLooks.filter(look => 
+        return allLooks.filter(look => 
           look.category === 'glamour' || 
-          look.tags.some(tag => normalizeString(tag) === 'glamour' || normalizeString(tag) === 'glam')
+          (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'glamour' || normalizeString(tag) === 'glam'))
         );
       case 'Soirée':
-        return mockLooks.filter(look => 
+        return allLooks.filter(look => 
           look.category === 'soirée' || 
-          look.tags.some(tag => normalizeString(tag) === 'soiree' || normalizeString(tag) === 'evening')
+          (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'soiree' || normalizeString(tag) === 'evening'))
         );
       case 'Tous les jours':
-        return mockLooks.filter(look => 
+        return allLooks.filter(look => 
           look.category === 'tous-les-jours' || 
-          look.tags.some(tag => 
+          (look.tags && look.tags.some((tag: string) => 
             normalizeString(tag) === 'quotidien' || 
             normalizeString(tag) === 'tous les jours' ||
             normalizeString(tag) === 'everyday' ||
             normalizeString(tag) === 'casual'
-          )
+          ))
         );
       default:
-        return mockLooks; // Tous
+        return allLooks;
     }
   };
 
   const filteredLooks = getFilteredLooks();
   const totalRows = Math.ceil(filteredLooks.length / LOOKS_PER_ROW);
-
-  // Gérer les looks non vus en mode Tinder
-  const getUnviewedLooks = () => {
-    return filteredLooks.filter(look => !viewedLooks.includes(look.id));
-  };
-
-  const unviewedLooks = getUnviewedLooks();
 
   useEffect(() => {
     setMounted(true);
@@ -105,21 +136,12 @@ function HomePageContent() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Réinitialiser l'index quand le filtre change
   useEffect(() => {
     setCurrentLookIndex(0);
     setCurrentRow(1);
     setViewedLooks([]);
     setShowExhaustedMessage(false);
-  }, [selectedFilter]);
-
-  // Réinitialiser l'index quand la recherche change
-  useEffect(() => {
-    setCurrentLookIndex(0);
-    setCurrentRow(1);
-    setViewedLooks([]);
-    setShowExhaustedMessage(false);
-  }, [searchQuery]);
+  }, [selectedFilter, searchQuery]);
 
   const currentLooks = filteredLooks.slice(
     (currentRow - 1) * LOOKS_PER_ROW,
@@ -136,22 +158,18 @@ function HomePageContent() {
 
   const skipToNext = () => {
     if (isMobile) {
-      // Marquer le look actuel comme vu
       const currentLookId = filteredLooks[currentLookIndex]?.id;
       if (currentLookId && !viewedLooks.includes(currentLookId)) {
         setViewedLooks([...viewedLooks, currentLookId]);
       }
 
-      // Vérifier s'il reste des looks non vus
       const remainingUnviewed = filteredLooks.filter(
         (look, idx) => idx > currentLookIndex && !viewedLooks.includes(look.id)
       );
 
       if (remainingUnviewed.length === 0) {
-        // Tous les looks ont été vus
         setShowExhaustedMessage(true);
       } else {
-        // Passer au prochain look non vu
         const nextIndex = currentLookIndex + 1;
         if (nextIndex < filteredLooks.length) {
           setCurrentLookIndex(nextIndex);
@@ -172,35 +190,48 @@ function HomePageContent() {
     setShowExhaustedMessage(false);
   };
 
-  // Bouton cœur EN HAUT (sur l'image) - Sauvegarde SEULEMENT, ne passe pas au suivant
   const handleToggleLike = (lookId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleLook(lookId);
   };
 
-  // Bouton cœur EN BAS (dans la box noire) - Sauvegarde ET passe au suivant
   const handleMobileLikeAndNext = (lookId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleLook(lookId); // Sauvegarde le look
-    skipToNext(); // Passe au look suivant
+    toggleLook(lookId);
+    skipToNext();
   };
 
   const currentLook = filteredLooks[currentLookIndex];
-  // Vérifie directement avec savedLookIds au lieu de isLookSaved
   const isCurrentLookLiked = mounted && currentLook && savedLookIds.includes(currentLook.id);
 
   // Looks pour les sections spéciales
-  const trendingLooks = mockLooks.slice(0, 3); // Looks 1, 2, 3
-  const lipLooks = mockLooks.slice(3, 5); // Looks 4, 5
-  const eyeLooks = mockLooks.slice(5, 6); // Look 6
+  const trendingLooks = allLooks.slice(0, 3);
+  const lipLooks = allLooks.slice(3, 5);
+  const eyeLooks = allLooks.slice(5, 6);
 
-  // VERSION MOBILE - Style Tinder
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des looks...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fonction pour obtenir l'URL de l'image
+  const getImageUrl = (look: Look) => {
+    return getCloudinaryUrl(look.cloudinary_image_id);
+  };
+
+  // VERSION MOBILE
   if (isMobile) {
     return (
       <div className="min-h-screen bg-white flex flex-col">
-        {/* Titre et description */}
         <div className="px-4 pt-6 pb-3 text-center">
           <h2 className="text-2xl font-bold text-black mb-2">Trouve ton look parfait</h2>
           <p className="text-sm text-gray-600">
@@ -208,51 +239,21 @@ function HomePageContent() {
           </p>
         </div>
 
-        {/* Filtres fonctionnels */}
+        {/* Filtres */}
         <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide">
-          <button 
-            onClick={() => setSelectedFilter('Tous')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-              selectedFilter === 'Tous' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Tous
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Naturel')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-              selectedFilter === 'Naturel' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Naturel
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Glamour')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-              selectedFilter === 'Glamour' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Glamour
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Soirée')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-              selectedFilter === 'Soirée' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Soirée
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Tous les jours')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-              selectedFilter === 'Tous les jours' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Tous les jours
-          </button>
+          {['Tous', 'Naturel', 'Glamour', 'Soirée', 'Tous les jours'].map(filter => (
+            <button 
+              key={filter}
+              onClick={() => setSelectedFilter(filter)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
+                selectedFilter === filter ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
 
-        {/* Message de recherche active */}
         {searchQuery && (
           <div className="mx-4 mt-2 mb-2 px-4 py-2 bg-pink-50 border border-pink-200 rounded-lg">
             <p className="text-sm text-pink-800">
@@ -261,21 +262,18 @@ function HomePageContent() {
           </div>
         )}
 
-        {/* Look cliquable - image seule - RÉDUIT DE 15% */}
+        {/* Look Tinder-style */}
         {!showExhaustedMessage && currentLook ? (
           <div className="flex flex-col justify-center px-4 bg-white py-2">
             <div className="relative w-full max-w-md mx-auto" style={{ maxHeight: '72vh' }}>
               <Link href={`/feed/${currentLook.id}`} className="relative w-full aspect-square rounded-t-2xl overflow-hidden block">
-                <Image 
-                  src={currentLook.image} 
+                <img 
+                  src={getImageUrl(currentLook)}
                   alt={currentLook.title}
-                  fill
-                  className="object-cover"
-                  priority
+                  className="w-full h-full object-cover"
                 />
               </Link>
 
-              {/* Bouton Like en haut à droite de l'image - SEULEMENT sauvegarde */}
               {mounted && (
                 <button
                   onClick={(e) => handleToggleLike(currentLook.id, e)}
@@ -292,27 +290,24 @@ function HomePageContent() {
               )}
             </div>
 
-            {/* Box noire avec info et 2 boutons - collé à l'image */}
             <div className="w-full max-w-md mx-auto bg-black rounded-b-2xl p-3 pb-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">
-                    {currentLook.creator.name[0]}
+                    {currentLook.creator_name?.[0] || 'U'}
                   </div>
                   <div>
-                    <p className="font-bold text-white text-sm">{currentLook.creator.name}</p>
-                    <p className="text-xs text-gray-300">{currentLook.creator.username}</p>
+                    <p className="font-bold text-white text-sm">{currentLook.creator_name || 'User'}</p>
+                    <p className="text-xs text-gray-300">{currentLook.creator_username || '@user'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-white text-sm">♡</span>
-                  <span className="text-xs font-medium text-white">{currentLook.likes.toLocaleString()}</span>
+                  <span className="text-xs font-medium text-white">{currentLook.likes?.toLocaleString() || 0}</span>
                 </div>
               </div>
 
-              {/* 2 Boutons : Croix à gauche et Cœur à droite */}
               <div className="flex items-center justify-center gap-6">
-                {/* Bouton Croix à gauche - Passe au look suivant SEULEMENT */}
                 <button 
                   onClick={skipToNext}
                   className="w-20 h-20 bg-pink-500 text-white rounded-full font-bold text-4xl hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
@@ -320,7 +315,6 @@ function HomePageContent() {
                   ×
                 </button>
 
-                {/* Bouton Cœur à droite - Sauvegarde ET passe au suivant */}
                 <button 
                   onClick={(e) => handleMobileLikeAndNext(currentLook.id, e)}
                   className="w-20 h-20 bg-pink-500 text-white rounded-full hover:bg-pink-600 transition-colors flex items-center justify-center shadow-lg"
@@ -337,7 +331,6 @@ function HomePageContent() {
             </div>
           </div>
         ) : showExhaustedMessage ? (
-          // Message d'épuisement des looks
           <div className="flex flex-col justify-center items-center px-4 py-12">
             <div className="w-full max-w-md mx-auto bg-black rounded-2xl p-8 text-center">
               <div className="mb-6">
@@ -359,7 +352,6 @@ function HomePageContent() {
           </div>
         ) : null}
 
-        {/* Espace vide après le Tinder-like form */}
         <div className="h-12"></div>
 
         {/* SECTIONS EN BAS - MOBILE */}
@@ -375,120 +367,123 @@ function HomePageContent() {
           </div>
 
           {/* LOOKS TENDANCES */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-bold text-black mb-6">LOOKS TENDANCES</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {trendingLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
+          {trendingLooks.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-3xl font-bold text-black mb-6">LOOKS TENDANCES</h2>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {trendingLooks.map((look) => {
+                  const isLiked = mounted && savedLookIds.includes(look.id);
+                  return (
+                    <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                      {mounted && (
+                        <button
+                          onClick={(e) => handleToggleLike(look.id, e)}
+                          className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                        >
+                          <Heart 
+                            className={`w-5 h-5 transition-colors ${
+                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <Link href={`/feed/${look.id}`} className="block">
+                        <div className="relative aspect-[3/4]">
+                          <img 
+                            src={getImageUrl(look)}
+                            alt={look.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-base text-gray-900 leading-relaxed font-medium">
+                Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
+                ont conquis notre communauté et définissent les tendances beauté actuelles.
+              </p>
             </div>
-            <p className="text-base text-gray-900 leading-relaxed font-medium">
-              Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
-              ont conquis notre communauté et définissent les tendances beauté actuelles.
-            </p>
-          </div>
+          )}
 
           {/* TOP LOOKS LÈVRES */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS LÈVRES</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {lipLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
+          {lipLooks.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS LÈVRES</h2>
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {lipLooks.map((look) => {
+                  const isLiked = mounted && savedLookIds.includes(look.id);
+                  return (
+                    <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                      {mounted && (
+                        <button
+                          onClick={(e) => handleToggleLike(look.id, e)}
+                          className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                        >
+                          <Heart 
+                            className={`w-5 h-5 transition-colors ${
+                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <Link href={`/feed/${look.id}`} className="block">
+                        <div className="relative aspect-[3/4]">
+                          <img 
+                            src={getImageUrl(look)}
+                            alt={look.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-base text-gray-900 leading-relaxed font-medium">
+                Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
+                du nude naturel au rouge statement en passant par les glossy lips tendance.
+              </p>
             </div>
-            <p className="text-base text-gray-900 leading-relaxed font-medium">
-              Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
-              du nude naturel au rouge statement en passant par les glossy lips tendance.
-            </p>
-          </div>
+          )}
 
           {/* TOP LOOKS YEUX */}
-          <div className="mb-12">
-            <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS YEUX</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {eyeLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
-                      >
-                        <Heart 
-                          className={`w-5 h-5 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
+          {eyeLooks.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS YEUX</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {eyeLooks.map((look) => {
+                  const isLiked = mounted && savedLookIds.includes(look.id);
+                  return (
+                    <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm">
+                      {mounted && (
+                        <button
+                          onClick={(e) => handleToggleLike(look.id, e)}
+                          className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                        >
+                          <Heart 
+                            className={`w-5 h-5 transition-colors ${
+                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <Link href={`/feed/${look.id}`} className="block">
+                        <div className="relative aspect-[3/4]">
+                          <img 
+                            src={getImageUrl(look)}
+                            alt={look.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* SECTION HERO - MOBILE - À LA FIN */}
           <div className="w-full -mx-4 bg-black py-12 px-6 mt-12">
@@ -522,10 +517,7 @@ function HomePageContent() {
           </div>
         </div>
 
-        {/* Newsletter Section */}
         <NewsletterSection />
-
-        {/* Footer */}
         <Footer />
       </div>
     );
@@ -540,51 +532,21 @@ function HomePageContent() {
           Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
         </p>
 
-        {/* Filtres fonctionnels - Desktop */}
+        {/* Filtres Desktop */}
         <div className="flex justify-center gap-2 mb-3">
-          <button 
-            onClick={() => setSelectedFilter('Tous')}
-            className={`px-5 py-1.5 rounded-full text-xs font-medium ${
-              selectedFilter === 'Tous' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Tous
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Naturel')}
-            className={`px-5 py-1.5 rounded-full text-xs font-medium ${
-              selectedFilter === 'Naturel' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Naturel
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Glamour')}
-            className={`px-5 py-1.5 rounded-full text-xs font-medium ${
-              selectedFilter === 'Glamour' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Glamour
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Soirée')}
-            className={`px-5 py-1.5 rounded-full text-xs font-medium ${
-              selectedFilter === 'Soirée' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Soirée
-          </button>
-          <button 
-            onClick={() => setSelectedFilter('Tous les jours')}
-            className={`px-5 py-1.5 rounded-full text-xs font-medium ${
-              selectedFilter === 'Tous les jours' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            Tous les jours
-          </button>
+          {['Tous', 'Naturel', 'Glamour', 'Soirée', 'Tous les jours'].map(filter => (
+            <button 
+              key={filter}
+              onClick={() => setSelectedFilter(filter)}
+              className={`px-5 py-1.5 rounded-full text-xs font-medium ${
+                selectedFilter === filter ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
 
-        {/* Message de recherche active - Desktop */}
         {searchQuery && (
           <div className="max-w-2xl mx-auto mt-4 mb-4 px-6 py-3 bg-pink-50 border border-pink-200 rounded-xl text-center">
             <p className="text-base text-pink-800">
@@ -614,36 +576,34 @@ function HomePageContent() {
 
                 <Link href={`/feed/${look.id}`} className="block">
                   <div className="relative aspect-[3/4]">
-                    <Image 
-                      src={look.image} 
+                    <img 
+                      src={getImageUrl(look)}
                       alt={look.title}
-                      fill
-                      className="object-cover"
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                          {look.creator.name[0]}
+                          {look.creator_name?.[0] || 'U'}
                         </div>
                         <div>
-                          <p className="text-white text-sm font-semibold">{look.creator.name}</p>
-                          <p className="text-white/80 text-xs">{look.creator.username}</p>
+                          <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
+                          <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
                         </div>
                       </div>
                       <h3 className="text-white font-bold">{look.title}</h3>
                       {currentRow > 1 && (
                         <>
                           <div className="flex gap-2 mt-1">
-                            {look.tags.slice(0, 2).map(tag => (
+                            {look.tags?.slice(0, 2).map((tag: string) => (
                               <span key={tag} className="text-xs bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
                                 #{tag}
                               </span>
                             ))}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-white text-xs">
-                            <span>♡ {look.likes}</span>
-                            <span>🛍️ {look.products.length} produits</span>
-                            <span className="bg-green-500/80 px-2 py-0.5 rounded capitalize">{look.difficulty}</span>
+                            <span>♡ {look.likes || 0}</span>
+                            <span className="bg-green-500/80 px-2 py-0.5 rounded capitalize">{look.difficulty || 'facile'}</span>
                           </div>
                         </>
                       )}
@@ -681,156 +641,159 @@ function HomePageContent() {
           </div>
 
           {/* LOOKS TENDANCES */}
-          <div className="mb-16">
-            <h2 className="text-4xl font-bold text-black mb-8">LOOKS TENDANCES</h2>
-            <div className="grid grid-cols-3 gap-6 mb-8">
-              {trendingLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-                      >
-                        <Heart 
-                          className={`w-6 h-6 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                              {look.creator.name[0]}
+          {trendingLooks.length > 0 && (
+            <div className="mb-16">
+              <h2 className="text-4xl font-bold text-black mb-8">LOOKS TENDANCES</h2>
+              <div className="grid grid-cols-3 gap-6 mb-8">
+                {trendingLooks.map((look) => {
+                  const isLiked = mounted && savedLookIds.includes(look.id);
+                  return (
+                    <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
+                      {mounted && (
+                        <button
+                          onClick={(e) => handleToggleLike(look.id, e)}
+                          className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                        >
+                          <Heart 
+                            className={`w-6 h-6 transition-colors ${
+                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <Link href={`/feed/${look.id}`} className="block">
+                        <div className="relative aspect-[3/4]">
+                          <img 
+                            src={getImageUrl(look)}
+                            alt={look.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
+                                {look.creator_name?.[0] || 'U'}
+                              </div>
+                              <div>
+                                <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
+                                <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-white text-sm font-semibold">{look.creator.name}</p>
-                              <p className="text-white/80 text-xs">{look.creator.username}</p>
-                            </div>
+                            <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
-                          <h3 className="text-white font-bold">{look.title}</h3>
                         </div>
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-lg text-gray-900 leading-relaxed font-medium">
+                Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
+                ont conquis notre communauté et définissent les tendances beauté actuelles.
+              </p>
             </div>
-            <p className="text-lg text-gray-900 leading-relaxed font-medium">
-              Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
-              ont conquis notre communauté et définissent les tendances beauté actuelles.
-            </p>
-          </div>
+          )}
 
           {/* TOP LOOKS LÈVRES */}
-          <div className="mb-16">
-            <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS LÈVRES</h2>
-            <div className="grid grid-cols-3 gap-6 mb-8">
-              {lipLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-                      >
-                        <Heart 
-                          className={`w-6 h-6 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                              {look.creator.name[0]}
+          {lipLooks.length > 0 && (
+            <div className="mb-16">
+              <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS LÈVRES</h2>
+              <div className="grid grid-cols-3 gap-6 mb-8">
+                {lipLooks.map((look) => {
+                  const isLiked = mounted && savedLookIds.includes(look.id);
+                  return (
+                    <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
+                      {mounted && (
+                        <button
+                          onClick={(e) => handleToggleLike(look.id, e)}
+                          className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                        >
+                          <Heart 
+                            className={`w-6 h-6 transition-colors ${
+                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <Link href={`/feed/${look.id}`} className="block">
+                        <div className="relative aspect-[3/4]">
+                          <img 
+                            src={getImageUrl(look)}
+                            alt={look.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
+                                {look.creator_name?.[0] || 'U'}
+                              </div>
+                              <div>
+                                <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
+                                <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-white text-sm font-semibold">{look.creator.name}</p>
-                              <p className="text-white/80 text-xs">{look.creator.username}</p>
-                            </div>
+                            <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
-                          <h3 className="text-white font-bold">{look.title}</h3>
                         </div>
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-lg text-gray-900 leading-relaxed font-medium">
+                Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
+                du nude naturel au rouge statement en passant par les glossy lips tendance.
+              </p>
             </div>
-            <p className="text-lg text-gray-900 leading-relaxed font-medium">
-              Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
-              du nude naturel au rouge statement en passant par les glossy lips tendance.
-            </p>
-          </div>
+          )}
 
           {/* TOP LOOKS YEUX */}
-          <div className="mb-16">
-            <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS YEUX</h2>
-            <div className="grid grid-cols-3 gap-6">
-              {eyeLooks.map((look) => {
-                const isLiked = mounted && savedLookIds.includes(look.id);
-                return (
-                  <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
-                    {mounted && (
-                      <button
-                        onClick={(e) => handleToggleLike(look.id, e)}
-                        className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-                      >
-                        <Heart 
-                          className={`w-6 h-6 transition-colors ${
-                            isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                          }`}
-                        />
-                      </button>
-                    )}
-                    <Link href={`/feed/${look.id}`} className="block">
-                      <div className="relative aspect-[3/4]">
-                        <Image 
-                          src={look.image} 
-                          alt={look.title}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                              {look.creator.name[0]}
+          {eyeLooks.length > 0 && (
+            <div className="mb-16">
+              <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS YEUX</h2>
+              <div className="grid grid-cols-3 gap-6">
+                {eyeLooks.map((look) => {
+                  const isLiked = mounted && savedLookIds.includes(look.id);
+                  return (
+                    <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
+                      {mounted && (
+                        <button
+                          onClick={(e) => handleToggleLike(look.id, e)}
+                          className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                        >
+                          <Heart 
+                            className={`w-6 h-6 transition-colors ${
+                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      )}
+                      <Link href={`/feed/${look.id}`} className="block">
+                        <div className="relative aspect-[3/4]">
+                          <img 
+                            src={getImageUrl(look)}
+                            alt={look.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
+                                {look.creator_name?.[0] || 'U'}
+                              </div>
+                              <div>
+                                <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
+                                <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-white text-sm font-semibold">{look.creator.name}</p>
-                              <p className="text-white/80 text-xs">{look.creator.username}</p>
-                            </div>
+                            <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
-                          <h3 className="text-white font-bold">{look.title}</h3>
                         </div>
-                      </div>
-                    </Link>
-                  </div>
-                );
-              })}
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* SECTION HERO - DESKTOP - À LA FIN */}
           <div className="w-full bg-pink-500 py-16 px-8 rounded-2xl">
@@ -865,10 +828,7 @@ function HomePageContent() {
         </div>
       </main>
 
-      {/* Newsletter Section */}
       <NewsletterSection />
-
-      {/* Footer */}
       <Footer />
     </>
   );
@@ -877,12 +837,14 @@ function HomePageContent() {
 // Composant principal avec Suspense
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-        <p className="text-gray-600">Chargement...</p>
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
       </div>
-    </div>}>
+    }>
       <HomePageContent />
     </Suspense>
   );

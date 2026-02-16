@@ -1,29 +1,93 @@
-// /src/app/(main)/feed/[lookId]/page.tsx
+// src/app/(main)/feed/[lookId]/page.tsx
+// Version Supabase + Cloudinary - Images et vidéos depuis Cloudinary
 
 'use client'
 
-import { use } from 'react'
+import { use, useState, useRef, useEffect } from 'react'
 import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getLookById } from '@/data/mockLooks'
-import { getProductById } from '@/data/mockProducts'
 import { ArrowLeft, Heart, ShoppingBag } from 'lucide-react'
-import { useState, useRef, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { getCloudinaryUrl, getCloudinaryVideoUrl } from '@/lib/cloudinary'
+
+// Types
+interface Look {
+  id: string;
+  title: string;
+  description?: string;
+  cloudinary_image_id: string | null;
+  cloudinary_video_id: string | null;
+  creator_name?: string;
+  creator_username?: string;
+  likes?: number;
+  look_products?: LookProduct[];
+}
+
+interface LookProduct {
+  product_id: string;
+  shade_id?: string;
+  category: string;
+  note?: string;
+  products: {
+    id: string;
+    name: string;
+    brand: string;
+    price: number;
+    cloudinary_id: string | null;
+    shades?: any;
+  };
+}
 
 export default function LookDetailPage({ params }: { params: Promise<{ lookId: string }> }) {
   const { lookId } = use(params)
-  const look = getLookById(lookId)
   const router = useRouter()
+  
+  const [look, setLook] = useState<Look | null>(null)
+  const [loading, setLoading] = useState(true)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [isMobile, setIsMobile] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  if (!look) {
-    notFound()
-  }
+  // ✅ Charger le look depuis Supabase
+  useEffect(() => {
+    async function fetchLook() {
+      setLoading(true)
+      
+      const { data, error } = await supabase
+        .from('looks')
+        .select(`
+          *,
+          look_products (
+            product_id,
+            shade_id,
+            category,
+            note,
+            products (
+              id,
+              name,
+              brand,
+              price,
+              cloudinary_id,
+              shades
+            )
+          )
+        `)
+        .eq('id', lookId)
+        .single()
+
+      if (error || !data) {
+        notFound()
+      } else {
+        setLook(data)
+      }
+      
+      setLoading(false)
+    }
+
+    fetchLook()
+  }, [lookId])
 
   useEffect(() => {
-    // Détecter si on est sur mobile
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -34,10 +98,8 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
   }, [])
 
   useEffect(() => {
-    if (videoRef.current && look.video) {
+    if (videoRef.current && look?.cloudinary_video_id) {
       const video = videoRef.current
-      
-      // Mobile = muted, Desktop = avec son
       video.muted = isMobile
       
       const playVideo = async () => {
@@ -45,7 +107,6 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
           await video.play()
         } catch (error) {
           console.log('Erreur autoplay:', error)
-          // Si ça échoue en desktop, essayer en muted
           if (!isMobile) {
             video.muted = true
             try {
@@ -59,7 +120,7 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
       
       playVideo()
     }
-  }, [look.video, isMobile])
+  }, [look?.cloudinary_video_id, isMobile])
 
   const toggleProductSelection = (productId: string, shadeId?: string) => {
     const key = shadeId ? `${productId}-${shadeId}` : productId
@@ -88,19 +149,35 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
     }
   }
 
-  // Vérifier si un produit est de type teint/peau
   const isSkinProduct = (category: string) => {
     return ['Teint', 'Correcteur', 'Poudre'].includes(category)
   }
 
-  const categorizedProducts = {
-    peau: look.products.filter(p => ['Teint', 'Correcteur', 'Poudre', 'Blush', 'Highlighter'].includes(p.category)),
-    cils: look.products.filter(p => p.category === 'Mascara'),
-    yeux: look.products.filter(p => ['Fard à paupières', 'Eye-liner', 'Sourcils'].includes(p.category)),
-    lèvres: look.products.filter(p => ['Rouge à lèvres', 'Gloss'].includes(p.category))
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du look...</p>
+        </div>
+      </div>
+    )
   }
 
-  const renderProductsByCategory = (categoryProducts: typeof look.products, categoryTitle: string) => {
+  if (!look) {
+    notFound()
+  }
+
+  // Organiser les produits par catégorie
+  const categorizedProducts = {
+    peau: look.look_products?.filter(p => ['Teint', 'Correcteur', 'Poudre', 'Blush', 'Highlighter'].includes(p.category)) || [],
+    cils: look.look_products?.filter(p => p.category === 'Mascara') || [],
+    yeux: look.look_products?.filter(p => ['Fard à paupières', 'Eye-liner', 'Sourcils'].includes(p.category)) || [],
+    lèvres: look.look_products?.filter(p => ['Rouge à lèvres', 'Gloss'].includes(p.category)) || []
+  }
+
+  const renderProductsByCategory = (categoryProducts: LookProduct[], categoryTitle: string) => {
     if (categoryProducts.length === 0) return null
 
     return (
@@ -108,18 +185,32 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
         <h3 className="mb-3 text-lg font-semibold text-gray-800 uppercase tracking-wide">{categoryTitle}</h3>
         <div className="space-y-3">
           {categoryProducts.map((item) => {
-            const product = getProductById(item.productId)
+            const product = item.products
             if (!product) return null
 
-            const shade = product.shades?.find(s => s.id === item.shadeId)
-            const isSelected = isProductSelected(product.id, item.shadeId)
+            // Parser les shades
+            let shades = []
+            if (product.shades) {
+              if (typeof product.shades === 'string') {
+                try {
+                  shades = JSON.parse(product.shades)
+                } catch {
+                  shades = []
+                }
+              } else {
+                shades = product.shades
+              }
+            }
+
+            const shade = shades.find((s: any) => s.id === item.shade_id)
+            const isSelected = isProductSelected(product.id, item.shade_id)
             const isSkin = isSkinProduct(item.category)
 
             return (
-              <div key={`${item.productId}-${item.shadeId}`} className="flex gap-4 rounded-xl border border-gray-200 p-4">
+              <div key={`${product.id}-${item.shade_id}`} className="flex gap-4 rounded-xl border border-gray-200 p-4">
                 <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
                   <img 
-                    src={product.image} 
+                    src={getCloudinaryUrl(product.cloudinary_id)}
                     alt={product.name} 
                     className="h-full w-full object-cover"
                   />
@@ -138,9 +229,9 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
                   
                   {item.note && <p className="mt-1 text-xs italic text-gray-500">{item.note}</p>}
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="font-bold text-gray-900">{product.price}€</span>
+                    <span className="font-bold text-gray-900">{Number(product.price).toFixed(2)}€</span>
                     <button
-                      onClick={() => toggleProductSelection(product.id, item.shadeId)}
+                      onClick={() => toggleProductSelection(product.id, item.shade_id)}
                       className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                         isSelected ? 'bg-pink-500 text-white' : 'bg-gray-900 text-white hover:bg-gray-800'
                       }`}
@@ -157,6 +248,10 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
     )
   }
 
+  // URLs Cloudinary
+  const imageUrl = getCloudinaryUrl(look.cloudinary_image_id)
+  const videoUrl = getCloudinaryVideoUrl(look.cloudinary_video_id)
+
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-md">
@@ -170,11 +265,12 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
 
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="grid gap-8 lg:grid-cols-2">
+          {/* Média (Vidéo ou Image) */}
           <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-gray-100">
-            {look.video ? (
+            {videoUrl ? (
               <video 
                 ref={videoRef}
-                src={look.video} 
+                src={videoUrl}
                 className="h-full w-full object-cover"
                 autoPlay
                 loop
@@ -184,13 +280,14 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
               />
             ) : (
               <img 
-                src={look.image} 
+                src={imageUrl}
                 alt={look.title}
                 className="h-full w-full object-cover"
               />
             )}
           </div>
 
+          {/* Détails du look */}
           <div>
             <div className="mb-6">
               <h1 className="mb-2 text-3xl font-bold text-gray-900">{look.title}</h1>
@@ -200,13 +297,13 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
             <div className="mb-6 flex items-center gap-4">
               <button className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-200">
                 <Heart className="h-4 w-4" />
-                {look.likes}
+                {look.likes || 0}
               </button>
             </div>
 
             <div className="mb-6">
               <p className="text-sm text-gray-500">
-                Par <span className="font-semibold text-gray-900">{look.creator.name}</span> {look.creator.username}
+                Par <span className="font-semibold text-gray-900">{look.creator_name || 'Créateur'}</span> {look.creator_username || '@user'}
               </p>
             </div>
 

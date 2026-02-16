@@ -1,22 +1,33 @@
 // src/app/(main)/cart/page.tsx
-// @ts-nocheck
+// Version Supabase + Cloudinary
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useCartStore } from '@/store/cart.store';
-import { getProductById } from '@/data/mockProducts';
+import { supabase } from '@/lib/supabase';
+import { getCloudinaryUrl } from '@/lib/cloudinary';
 import { ArrowLeft, Trash2, Plus, Minus } from 'lucide-react';
+
+// Type Product
+interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  cloudinary_id: string | null;
+  category: string;
+  shades?: any;
+}
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getTotalPrice, clearCart } = useCartStore();
-
-  // Récupérer la carnation sauvegardée
   const [savedSkinTone, setSavedSkinTone] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Palette de carnations (même que checkout-look)
+  // Palette de carnations
   const skinTones = [
     { id: '1', name: 'Très clair rosé', hex: '#FFE4D6' },
     { id: '2', name: 'Clair rosé', hex: '#FFDCC5' },
@@ -40,16 +51,34 @@ export default function CartPage() {
     { id: '20', name: 'Ultra profond', hex: '#2C1614' },
   ];
 
-  // Charger la carnation au montage du composant
+  // ✅ Charger les produits depuis Supabase
   useEffect(() => {
+    async function fetchProducts() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+
+      if (!error && data) {
+        setProducts(data);
+      }
+      setLoading(false);
+    }
+
+    fetchProducts();
+
+    // Charger la carnation
     const tone = localStorage.getItem('userSkinTone');
     setSavedSkinTone(tone);
   }, []);
 
-  // Vérifier si un produit est de type teint/peau
-  const isSkinProduct = (product: any) => {
-    if (!product) return false;
-    return ['foundation', 'concealer', 'powder'].includes(product.category);
+  const isSkinProduct = (category: string) => {
+    return ['foundation', 'concealer', 'powder', 'teint', 'correcteur', 'poudre'].includes(category.toLowerCase());
+  };
+
+  // Trouver un produit par ID
+  const getProduct = (productId: string) => {
+    return products.find(p => p.id === productId);
   };
 
   const total = getTotalPrice();
@@ -61,10 +90,7 @@ export default function CartPage() {
       <div className="min-h-screen bg-white">
         <header className="border-b border-gray-200">
           <div className="mx-auto max-w-7xl px-4 py-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm font-medium hover:text-gray-600"
-            >
+            <Link href="/" className="flex items-center gap-2 text-sm font-medium hover:text-gray-600">
               <ArrowLeft className="h-4 w-4" />
               Continuer mes achats
             </Link>
@@ -73,23 +99,13 @@ export default function CartPage() {
 
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
           <div className="mb-6 text-6xl">🛒</div>
-          <h1 className="mb-3 text-2xl font-bold text-gray-900">
-            Votre panier est vide
-          </h1>
-          <p className="mb-8 text-gray-600">
-            Découvrez nos looks et produits pour commencer vos achats
-          </p>
+          <h1 className="mb-3 text-2xl font-bold text-gray-900">Votre panier est vide</h1>
+          <p className="mb-8 text-gray-600">Découvrez nos looks et produits pour commencer vos achats</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href="/"
-              className="rounded-lg bg-gray-900 px-6 py-3 font-semibold text-white transition-colors hover:bg-gray-800"
-            >
+            <Link href="/" className="rounded-lg bg-gray-900 px-6 py-3 font-semibold text-white transition-colors hover:bg-gray-800">
               Voir les looks
             </Link>
-            <Link
-              href="/shop"
-              className="rounded-lg border border-gray-300 px-6 py-3 font-semibold transition-colors hover:bg-gray-50"
-            >
+            <Link href="/shop" className="rounded-lg border border-gray-300 px-6 py-3 font-semibold transition-colors hover:bg-gray-50">
               Voir les produits
             </Link>
           </div>
@@ -98,23 +114,27 @@ export default function CartPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du panier...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
       <header className="border-b border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm font-medium hover:text-gray-600"
-            >
+            <Link href="/" className="flex items-center gap-2 text-sm font-medium hover:text-gray-600">
               <ArrowLeft className="h-4 w-4" />
               Continuer mes achats
             </Link>
-            <button
-              onClick={clearCart}
-              className="text-sm font-medium text-red-600 hover:text-red-700"
-            >
+            <button onClick={clearCart} className="text-sm font-medium text-red-600 hover:text-red-700">
               Vider le panier
             </button>
           </div>
@@ -122,37 +142,34 @@ export default function CartPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="mb-8 text-3xl font-bold text-gray-900">
-          Votre panier
-        </h1>
+        <h1 className="mb-8 text-3xl font-bold text-gray-900">Votre panier</h1>
 
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Cart items */}
           <div className="lg:col-span-2">
             <div className="space-y-4">
               {items.map((item) => {
-                const product = getProductById(item.productId);
+                const product = getProduct(item.productId);
                 if (!product) return null;
 
-                const shade = product.shades?.find(s => s.id === item.shadeId);
-                const isSkin = isSkinProduct(product);
+                // Parser shades
+                let shades = [];
+                if (product.shades) {
+                  shades = typeof product.shades === 'string' ? JSON.parse(product.shades) : product.shades;
+                }
+
+                const shade = shades.find((s: any) => s.id === item.shadeId);
+                const isSkin = isSkinProduct(product.category);
                 const skinTone = savedSkinTone ? skinTones.find(t => t.id === savedSkinTone) : null;
 
                 return (
-                  <div
-                    key={`${item.productId}-${item.shadeId}`}
-                    className="flex gap-4 rounded-xl border border-gray-200 p-4"
-                  >
+                  <div key={`${item.productId}-${item.shadeId}`} className="flex gap-4 rounded-xl border border-gray-200 p-4">
                     {/* Product image */}
-                    <Link
-                      href={`/shop/products/${product.id}`}
-                      className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100"
-                    >
-                      <Image
-                        src={product.image}
+                    <Link href={`/shop/products/${product.id}`} className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                      <img
+                        src={getCloudinaryUrl(product.cloudinary_id)}
                         alt={product.name}
-                        fill
-                        className="object-cover"
+                        className="w-full h-full object-cover"
                       />
                     </Link>
 
@@ -160,46 +177,27 @@ export default function CartPage() {
                     <div className="flex flex-1 flex-col">
                       <div className="mb-2 flex items-start justify-between gap-4">
                         <div>
-                          <Link
-                            href={`/shop/products/${product.id}`}
-                            className="font-semibold text-gray-900 hover:underline"
-                          >
+                          <Link href={`/shop/products/${product.id}`} className="font-semibold text-gray-900 hover:underline">
                             {product.name}
                           </Link>
-                          <p className="text-sm text-gray-500">
-                            {product.brand}
-                          </p>
+                          <p className="text-sm text-gray-500">{product.brand}</p>
                           
-                          {/* Afficher SOIT la carnation (pour produits peau) SOIT le shade (pour autres produits) */}
                           {isSkin && skinTone ? (
                             <div className="mt-1 flex items-center gap-2">
-                              <div
-                                className="h-4 w-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: skinTone.hex }}
-                              />
-                              <span className="text-sm text-gray-600">
-                                {skinTone.name}
-                              </span>
+                              <div className="h-4 w-4 rounded-full border border-gray-300" style={{ backgroundColor: skinTone.hex }} />
+                              <span className="text-sm text-gray-600">{skinTone.name}</span>
                             </div>
                           ) : (
                             shade && (
                               <div className="mt-1 flex items-center gap-2">
-                                <div
-                                  className="h-4 w-4 rounded-full border border-gray-300"
-                                  style={{ backgroundColor: shade.hex }}
-                                />
-                                <span className="text-sm text-gray-600">
-                                  {shade.name}
-                                </span>
+                                <div className="h-4 w-4 rounded-full border border-gray-300" style={{ backgroundColor: shade.hex }} />
+                                <span className="text-sm text-gray-600">{shade.name}</span>
                               </div>
                             )
                           )}
                         </div>
 
-                        <button
-                          onClick={() => removeItem(item.productId, item.shadeId)}
-                          className="text-gray-400 transition-colors hover:text-red-600"
-                        >
+                        <button onClick={() => removeItem(item.productId, item.shadeId)} className="text-gray-400 transition-colors hover:text-red-600">
                           <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
@@ -208,37 +206,21 @@ export default function CartPage() {
                       <div className="mt-auto flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() =>
-                              updateQuantity(
-                                item.productId,
-                                item.quantity - 1,
-                                item.shadeId
-                              )
-                            }
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1, item.shadeId)}
                             className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 transition-colors hover:bg-gray-50"
                           >
                             <Minus className="h-4 w-4" />
                           </button>
-                          <span className="w-8 text-center font-semibold">
-                            {item.quantity}
-                          </span>
+                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
                           <button
-                            onClick={() =>
-                              updateQuantity(
-                                item.productId,
-                                item.quantity + 1,
-                                item.shadeId
-                              )
-                            }
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1, item.shadeId)}
                             className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 transition-colors hover:bg-gray-50"
                           >
                             <Plus className="h-4 w-4" />
                           </button>
                         </div>
 
-                        <p className="font-bold text-gray-900">
-                          {(product.price * item.quantity).toFixed(2)}€
-                        </p>
+                        <p className="font-bold text-gray-900">{(Number(product.price) * item.quantity).toFixed(2)}€</p>
                       </div>
                     </div>
                   </div>
@@ -250,9 +232,7 @@ export default function CartPage() {
           {/* Order summary */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 rounded-xl border border-gray-200 p-6">
-              <h2 className="mb-6 text-xl font-bold text-gray-900">
-                Récapitulatif
-              </h2>
+              <h2 className="mb-6 text-xl font-bold text-gray-900">Récapitulatif</h2>
 
               <div className="space-y-3 border-b border-gray-200 pb-4">
                 <div className="flex justify-between text-gray-600">
@@ -261,9 +241,7 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Livraison</span>
-                  <span className="font-semibold">
-                    {shipping === 0 ? 'Gratuite' : `${shipping.toFixed(2)}€`}
-                  </span>
+                  <span className="font-semibold">{shipping === 0 ? 'Gratuite' : `${shipping.toFixed(2)}€`}</span>
                 </div>
                 {total < 50 && (
                   <p className="text-xs text-gray-500">
@@ -277,10 +255,7 @@ export default function CartPage() {
                 <span>{finalTotal.toFixed(2)}€</span>
               </div>
 
-              <Link
-                href="/checkout"
-                className="block w-full rounded-lg bg-gray-900 py-4 text-center font-semibold text-white transition-colors hover:bg-gray-800"
-              >
+              <Link href="/checkout" className="block w-full rounded-lg bg-gray-900 py-4 text-center font-semibold text-white transition-colors hover:bg-gray-800">
                 Passer la commande
               </Link>
 

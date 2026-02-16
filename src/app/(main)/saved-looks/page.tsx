@@ -1,32 +1,78 @@
 // src/app/(main)/saved-looks/page.tsx
-// @ts-nocheck
+// Version Supabase + Cloudinary
+
 "use client";
 
 import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { mockLooks } from '@/data/mockLooks';
-import Image from 'next/image';
-import Link from 'next/link';
 import { Heart, ArrowLeft, Sparkles, ShoppingBag } from 'lucide-react';
 import { useSavedLooksStore } from '@/store/saved-looks.store';
+import { supabase } from '@/lib/supabase';
+import { getCloudinaryUrl } from '@/lib/cloudinary';
+import Link from 'next/link';
+
+// Type Look
+interface Look {
+  id: string;
+  title: string;
+  cloudinary_image_id: string | null;
+  creator_name?: string;
+  creator_username?: string;
+  likes?: number;
+  look_products?: any[];
+}
 
 function SavedLooksContent() {
   const [mounted, setMounted] = useState(false);
-  const searchParams = useSearchParams();
+  const [allLooks, setAllLooks] = useState<Look[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   const savedLookIds = useSavedLooksStore((state) => state.savedLookIds);
   const toggleLook = useSavedLooksStore((state) => state.toggleLook);
 
+  // ✅ Charger TOUS les looks depuis Supabase
   useEffect(() => {
-    setMounted(true);
+    async function fetchLooks() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('looks')
+        .select(`
+          *,
+          look_products (id)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setAllLooks(data);
+      }
+      setLoading(false);
+      setMounted(true);
+    }
+
+    fetchLooks();
   }, []);
 
-  const savedLooks = mockLooks.filter(look => savedLookIds.includes(look.id));
+  // Filtrer les looks sauvegardés
+  const savedLooks = allLooks.filter(look => savedLookIds.includes(look.id));
+
+  if (loading || !mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-20 h-20 border-8 border-pink-200 border-t-pink-500 rounded-full animate-spin mx-auto"></div>
+            <Heart className="w-8 h-8 text-pink-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+          </div>
+          <p className="text-gray-600 mt-6 text-lg font-medium">Chargement de vos favoris...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header avec style */}
+        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link href="/" className="p-3 bg-white hover:bg-gray-50 rounded-full transition-all shadow-md hover:shadow-lg">
             <ArrowLeft className="w-6 h-6 text-gray-700" />
@@ -45,15 +91,7 @@ function SavedLooksContent() {
           </div>
         </div>
 
-        {!mounted ? (
-          <div className="text-center py-32">
-            <div className="relative">
-              <div className="w-20 h-20 border-8 border-pink-200 border-t-pink-500 rounded-full animate-spin mx-auto"></div>
-              <Heart className="w-8 h-8 text-pink-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-            </div>
-            <p className="text-gray-600 mt-6 text-lg font-medium">Chargement de vos favoris...</p>
-          </div>
-        ) : savedLooks.length === 0 ? (
+        {savedLooks.length === 0 ? (
           <div className="text-center py-20">
             <div className="relative inline-block mb-8">
               <div className="absolute inset-0 bg-pink-200 blur-3xl opacity-50 animate-pulse"></div>
@@ -77,13 +115,13 @@ function SavedLooksContent() {
                 className="relative bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all hover:scale-105 group animate-fadeIn"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                {/* Badge "Favori" */}
+                {/* Badge Favori */}
                 <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
                   <Heart className="w-3 h-3 fill-white" />
                   Favori
                 </div>
 
-                {/* Bouton Unlike avec animation */}
+                {/* Bouton Unlike */}
                 <button
                   onClick={() => toggleLook(look.id)}
                   className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-xl hover:bg-pink-50 transition-all hover:scale-110 group-hover:rotate-12"
@@ -93,37 +131,33 @@ function SavedLooksContent() {
 
                 <Link href={`/feed/${look.id}`} className="block">
                   <div className="relative aspect-[3/4]">
-                    <Image 
-                      src={look.image} 
+                    <img 
+                      src={getCloudinaryUrl(look.cloudinary_image_id)}
                       alt={look.title}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
-                    {/* Overlay gradient coloré */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60 group-hover:opacity-80 transition-opacity"></div>
                     
-                    {/* Infos avec style */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4 transform group-hover:translate-y-0 transition-transform">
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-lg ring-2 ring-white">
-                          {look.creator.name[0]}
+                          {look.creator_name?.[0] || 'U'}
                         </div>
                         <div>
-                          <p className="text-white font-bold text-sm">{look.creator.name}</p>
-                          <p className="text-white/80 text-xs">{look.creator.username}</p>
+                          <p className="text-white font-bold text-sm">{look.creator_name || 'User'}</p>
+                          <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
                         </div>
                       </div>
                       <h3 className="text-white font-bold text-base mb-2">{look.title}</h3>
                       
-                      {/* Stats */}
                       <div className="flex items-center gap-3 text-white/90 text-xs">
                         <span className="flex items-center gap-1">
                           <Heart className="w-3 h-3 fill-white" />
-                          {look.likes.toLocaleString()}
+                          {look.likes?.toLocaleString() || 0}
                         </span>
                         <span className="flex items-center gap-1">
                           <ShoppingBag className="w-3 h-3" />
-                          {look.products.length} produits
+                          {look.look_products?.length || 0} produits
                         </span>
                       </div>
                     </div>
@@ -135,7 +169,6 @@ function SavedLooksContent() {
         )}
       </div>
 
-      {/* CSS Animations */}
       <style jsx>{`
         @keyframes fadeIn {
           from {

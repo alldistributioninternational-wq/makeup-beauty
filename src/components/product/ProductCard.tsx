@@ -1,13 +1,31 @@
 // src/components/product/ProductCard.tsx
+// Version Cloudinary - Les images sont chargées depuis Cloudinary, pas depuis /public/images
 
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { Product } from '@/types/product.types';
 import { useCartStore } from '@/store/cart.store';
 import { ShoppingCart, Check } from 'lucide-react';
+import { getCloudinaryUrl, ImageVariants } from '@/lib/cloudinary';
+
+// Type Product adapté pour Supabase + Cloudinary
+interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  cloudinary_id: string | null; // ← Cloudinary ID au lieu de image URL
+  description?: string;
+  category?: string;
+  shades?: Array<{
+    id: string;
+    name: string;
+    hex: string;
+  }>;
+  in_stock?: boolean;
+  is_featured?: boolean;
+}
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +38,22 @@ export default function ProductCard({
   defaultShadeId,
   showQuickAdd = true 
 }: ProductCardProps) {
-  const [selectedShadeId, setSelectedShadeId] = useState(defaultShadeId || product.shades?.[0]?.id || 'default');
+  // Parser les shades si c'est du JSON string
+  const shades = (() => {
+    if (!product.shades) return [];
+    if (typeof product.shades === 'string') {
+      try {
+        return JSON.parse(product.shades);
+      } catch {
+        return [];
+      }
+    }
+    return product.shades;
+  })();
+
+  const [selectedShadeId, setSelectedShadeId] = useState(
+    defaultShadeId || shades?.[0]?.id || 'default'
+  );
   const [isAdded, setIsAdded] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
 
@@ -29,7 +62,7 @@ export default function ProductCard({
     e.stopPropagation();
     
     // Trouver la shade sélectionnée
-    const selectedShade = product.shades?.find(s => s.id === selectedShadeId);
+    const selectedShade = shades?.find((s: any) => s.id === selectedShadeId);
     
     // Construire l'objet CartItem complet
     addItem({
@@ -38,7 +71,9 @@ export default function ProductCard({
       name: product.name,
       brand: product.brand,
       price: product.price,
-      image: product.image,
+      image: product.cloudinary_id 
+        ? getCloudinaryUrl(product.cloudinary_id) 
+        : '/placeholder-product.jpg', // Fallback
       shade: selectedShade?.name || 'Unique',
       quantity: 1,
     });
@@ -47,27 +82,31 @@ export default function ProductCard({
     setTimeout(() => setIsAdded(false), 2000);
   };
 
+  // ✅ GÉNÉRER L'URL CLOUDINARY optimisée
+  const imageUrl = product.cloudinary_id 
+    ? ImageVariants.card(product.cloudinary_id) // Taille card (400px)
+    : '/placeholder-product.jpg';
+
   return (
     <div className="group">
       <Link href={`/shop/products/${product.id}`} className="block">
-        {/* Image */}
+        {/* Image depuis Cloudinary */}
         <div className="relative mb-3 aspect-square overflow-hidden rounded-xl bg-gray-100">
-          <Image
-            src={product.image}
+          <img
+            src={imageUrl}
             alt={product.name}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           
           {/* Badge featured */}
-          {product.featured && (
+          {product.is_featured && (
             <div className="absolute left-3 top-3 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
               ⭐ Bestseller
             </div>
           )}
 
           {/* Out of stock */}
-          {!product.inStock && (
+          {!product.in_stock && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40">
               <span className="rounded-lg bg-white px-4 py-2 font-semibold text-gray-900">
                 Rupture de stock
@@ -88,9 +127,9 @@ export default function ProductCard({
         </div>
 
         {/* Shades */}
-        {product.shades && product.shades.length > 0 && (
+        {shades && shades.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
-            {product.shades.slice(0, 6).map((shade) => (
+            {shades.slice(0, 6).map((shade: any) => (
               <button
                 key={shade.id}
                 onClick={(e) => {
@@ -107,16 +146,16 @@ export default function ProductCard({
                 title={shade.name}
               />
             ))}
-            {product.shades.length > 6 && (
+            {shades.length > 6 && (
               <span className="flex h-6 items-center text-xs text-gray-500">
-                +{product.shades.length - 6}
+                +{shades.length - 6}
               </span>
             )}
           </div>
         )}
 
         {/* Quick add button */}
-        {showQuickAdd && product.inStock && (
+        {showQuickAdd && product.in_stock && (
           <button
             onClick={handleAddToCart}
             disabled={isAdded}
