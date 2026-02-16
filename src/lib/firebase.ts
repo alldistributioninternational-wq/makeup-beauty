@@ -12,24 +12,44 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase (éviter la double initialisation)
-let app: FirebaseApp;
-let auth: Auth;
+// Variables globales
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
 let analytics: Analytics | null = null;
 
-if (typeof window !== 'undefined') {
-  // Code côté client uniquement
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  auth = getAuth(app);
+// Fonction pour initialiser Firebase (appelée uniquement côté client)
+function initializeFirebase() {
+  if (typeof window === 'undefined') return;
   
-  // Analytics uniquement côté client
-  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID) {
-    analytics = getAnalytics(app);
+  if (!app) {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    auth = getAuth(app);
+    
+    if (firebaseConfig.measurementId) {
+      analytics = getAnalytics(app);
+    }
   }
-} else {
-  // Code côté serveur (fallback)
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  auth = getAuth(app);
+  
+  return { app, auth, analytics };
 }
 
-export { app, auth, analytics };
+// Getters qui initialisent au besoin
+function getFirebaseApp() {
+  if (typeof window === 'undefined') return undefined;
+  if (!app) initializeFirebase();
+  return app;
+}
+
+function getFirebaseAuth() {
+  if (typeof window === 'undefined') return undefined;
+  if (!auth) initializeFirebase();
+  return auth;
+}
+
+function getFirebaseAnalytics() {
+  if (typeof window === 'undefined') return null;
+  if (!analytics) initializeFirebase();
+  return analytics;
+}
+
+export { getFirebaseApp as app, getFirebaseAuth as auth, getFirebaseAnalytics as analytics };

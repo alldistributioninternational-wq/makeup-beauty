@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { User, Mail, Phone, LogOut, Loader2, CheckCircle, Package, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Toast from '@/components/Toast';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function ProfilePage() {
   
   const [showLoginForm, setShowLoginForm] = useState(true); // true = login, false = register
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,6 +24,13 @@ export default function ProfilePage() {
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  // Afficher le toast quand il y a une erreur
+  useEffect(() => {
+    if (error) {
+      setShowErrorToast(true);
+    }
+  }, [error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,10 +88,24 @@ export default function ProfilePage() {
     });
   };
 
+  const handleCloseErrorToast = () => {
+    setShowErrorToast(false);
+    clearError();
+  };
+
   // Vue non connectée (Login/Register)
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-4">
+        {/* Toast pour les erreurs */}
+        {showErrorToast && error && (
+          <Toast 
+            message={error} 
+            type="error" 
+            onClose={handleCloseErrorToast}
+          />
+        )}
+
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           {/* Logo / Header */}
           <div className="text-center mb-8">
@@ -104,13 +127,6 @@ export default function ProfilePage() {
                 <p className="text-green-800 font-semibold">Votre profil a été bien créé !</p>
                 <p className="text-green-600 text-sm">Bienvenue sur Ilma Skin 🎉</p>
               </div>
-            </div>
-          )}
-
-          {/* Afficher les erreurs */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
@@ -212,6 +228,7 @@ export default function ProfilePage() {
                 onClick={() => {
                   setShowLoginForm(!showLoginForm);
                   clearError();
+                  setShowErrorToast(false);
                   setFormData({
                     email: '',
                     password: '',
