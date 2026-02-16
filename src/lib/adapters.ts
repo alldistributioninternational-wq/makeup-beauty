@@ -1,6 +1,5 @@
 // src/lib/adapters.ts
 // Adaptateurs pour convertir les données Supabase au format de vos types existants
-
 import type { Product as SupabaseProduct, Look as SupabaseLook } from '@/types/supabase.types';
 import type { Product as MockProduct } from '@/types/product.types';
 import type { Look as MockLook } from '@/types/look.types';
@@ -10,7 +9,7 @@ import type { Look as MockLook } from '@/types/look.types';
  */
 export function adaptSupabaseProductToMock(supabaseProduct: SupabaseProduct): MockProduct {
   // Parser les shades si c'est du JSON string
-  let shades = [];
+  let shades: any[] = [];
   if (supabaseProduct.shades) {
     if (typeof supabaseProduct.shades === 'string') {
       try {
@@ -18,7 +17,7 @@ export function adaptSupabaseProductToMock(supabaseProduct: SupabaseProduct): Mo
       } catch {
         shades = [];
       }
-    } else {
+    } else if (Array.isArray(supabaseProduct.shades)) {
       shades = supabaseProduct.shades;
     }
   }

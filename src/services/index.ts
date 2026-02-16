@@ -8,4 +8,4 @@ export { orderService } from './order.service'
 export { userService } from './user.service'
 
 // Re-export du client Supabase si besoin
-export { supabase, getCurrentUser, signIn, signUp, signOut } from '@/lib/supabase'
+export { supabase } from '@/lib/supabase'
