@@ -1,5 +1,8 @@
 'use client';
 
+// ✅ Empêche le pré-rendu statique - nécessaire car utilise Supabase
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -25,12 +28,10 @@ export default function AdminDashboard() {
 
   const loadStats = async () => {
     try {
-      // Compter les looks
       const { count: looksCount } = await supabase
         .from('looks')
         .select('*', { count: 'exact', head: true });
 
-      // Compter les produits
       const { count: productsCount } = await supabase
         .from('products')
         .select('*', { count: 'exact', head: true });
@@ -81,14 +82,11 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent mb-2">
             💎 Dashboard Admin
           </h1>
-          <p className="text-gray-600">
-            Bienvenue sur votre tableau de bord BeautyBloom
-          </p>
+          <p className="text-gray-600">Bienvenue sur votre tableau de bord BeautyBloom</p>
         </div>
 
         {/* Stats Cards */}
@@ -102,12 +100,8 @@ export default function AdminDashboard() {
                 {loading ? '...' : stats.totalLooks}
               </span>
             </div>
-            <h3 className="text-sm font-medium text-gray-600 mb-1">
-              Looks publiés
-            </h3>
-            <p className="text-xs text-gray-500">
-              Total de looks sur la plateforme
-            </p>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Looks publiés</h3>
+            <p className="text-xs text-gray-500">Total de looks sur la plateforme</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-purple-100">
@@ -119,12 +113,8 @@ export default function AdminDashboard() {
                 {loading ? '...' : stats.totalProducts}
               </span>
             </div>
-            <h3 className="text-sm font-medium text-gray-600 mb-1">
-              Produits
-            </h3>
-            <p className="text-xs text-gray-500">
-              Catalogue de produits disponibles
-            </p>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Produits</h3>
+            <p className="text-xs text-gray-500">Catalogue de produits disponibles</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-blue-100">
@@ -132,24 +122,16 @@ export default function AdminDashboard() {
               <div className="bg-blue-100 p-3 rounded-xl">
                 <BarChart3 className="h-6 w-6 text-blue-600" />
               </div>
-              <span className="text-3xl font-bold text-gray-800">
-                2.5K
-              </span>
+              <span className="text-3xl font-bold text-gray-800">2.5K</span>
             </div>
-            <h3 className="text-sm font-medium text-gray-600 mb-1">
-              Vues totales
-            </h3>
-            <p className="text-xs text-gray-500">
-              Vues sur tous les looks
-            </p>
+            <h3 className="text-sm font-medium text-gray-600 mb-1">Vues totales</h3>
+            <p className="text-xs text-gray-500">Vues sur tous les looks</p>
           </div>
         </div>
 
         {/* Actions rapides */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">
-            ⚡ Actions rapides
-          </h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-4">⚡ Actions rapides</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link
               href="/admin/looks/new"
@@ -184,16 +166,13 @@ export default function AdminDashboard() {
                   <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-pink-600 transition">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    {item.description}
-                  </p>
+                  <p className="text-sm text-gray-600">{item.description}</p>
                 </div>
               </div>
             </Link>
           ))}
         </div>
 
-        {/* Footer info */}
         <div className="mt-8 p-4 bg-blue-50 rounded-xl border border-blue-200">
           <p className="text-sm text-blue-900">
             💡 <strong>Astuce :</strong> Commencez par uploader vos médias sur Cloudinary, 
