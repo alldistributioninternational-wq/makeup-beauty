@@ -4,13 +4,27 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { User, Mail, Phone, LogOut, Loader2, CheckCircle, Package, Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Toast from '@/components/Toast';
+
+// Toast inline pour éviter les problèmes de casing
+function Toast({ message, type = 'error', onClose }: { message: string; type?: string; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+      <span>{message}</span>
+      <button onClick={onClose} className="ml-2 text-white font-bold">×</button>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, error, register, login, logout, clearError, initAuth } = useAuthStore();
   
-  const [showLoginForm, setShowLoginForm] = useState(true); // true = login, false = register
+  const [showLoginForm, setShowLoginForm] = useState(true);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,12 +34,10 @@ export default function ProfilePage() {
     phone: '',
   });
 
-  // Initialiser Firebase Auth au montage du composant
   useEffect(() => {
     initAuth();
   }, [initAuth]);
 
-  // Afficher le toast quand il y a une erreur
   useEffect(() => {
     if (error) {
       setShowErrorToast(true);
@@ -36,37 +48,19 @@ export default function ProfilePage() {
     e.preventDefault();
     clearError();
 
-    // Validation
-    if (!formData.email || !formData.password) {
-      return;
-    }
-
-    if (!showLoginForm && !formData.fullName) {
-      return;
-    }
+    if (!formData.email || !formData.password) return;
+    if (!showLoginForm && !formData.fullName) return;
 
     try {
       if (showLoginForm) {
         await login(formData.email, formData.password);
-        // Succès - redirection automatique vers le profil
       } else {
         await register(formData.email, formData.password, formData.fullName, formData.phone);
-        // Afficher le message de succès
         setShowSuccessMessage(true);
-        
-        // Masquer le message après 3 secondes
-        setTimeout(() => {
-          setShowSuccessMessage(false);
-        }, 3000);
+        setTimeout(() => setShowSuccessMessage(false), 3000);
       }
       
-      // Réinitialiser le formulaire
-      setFormData({
-        email: '',
-        password: '',
-        fullName: '',
-        phone: '',
-      });
+      setFormData({ email: '', password: '', fullName: '', phone: '' });
     } catch (err) {
       console.error('Auth error:', err);
     }
@@ -82,10 +76,7 @@ export default function ProfilePage() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleCloseErrorToast = () => {
@@ -93,21 +84,15 @@ export default function ProfilePage() {
     clearError();
   };
 
-  // Vue non connectée (Login/Register)
+  // Vue non connectée
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-4">
-        {/* Toast pour les erreurs */}
         {showErrorToast && error && (
-          <Toast 
-            message={error} 
-            type="error" 
-            onClose={handleCloseErrorToast}
-          />
+          <Toast message={error} type="error" onClose={handleCloseErrorToast} />
         )}
 
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-          {/* Logo / Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {showLoginForm ? 'Connexion' : 'Créer un compte'}
@@ -119,9 +104,8 @@ export default function ProfilePage() {
             </p>
           </div>
 
-          {/* Message de succès après inscription */}
           {showSuccessMessage && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 animate-slideInDown">
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
               <CheckCircle className="text-green-500" size={24} />
               <div>
                 <p className="text-green-800 font-semibold">Votre profil a été bien créé !</p>
@@ -130,7 +114,6 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Formulaire */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {!showLoginForm && (
               <div>
@@ -204,9 +187,7 @@ export default function ProfilePage() {
                 className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none transition-colors"
               />
               {!showLoginForm && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Minimum 6 caractères
-                </p>
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
               )}
             </div>
 
@@ -220,7 +201,6 @@ export default function ProfilePage() {
             </button>
           </form>
 
-          {/* Toggle Login/Register */}
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               {showLoginForm ? "Pas encore de compte ?" : "Déjà un compte ?"}
@@ -229,12 +209,7 @@ export default function ProfilePage() {
                   setShowLoginForm(!showLoginForm);
                   clearError();
                   setShowErrorToast(false);
-                  setFormData({
-                    email: '',
-                    password: '',
-                    fullName: '',
-                    phone: '',
-                  });
+                  setFormData({ email: '', password: '', fullName: '', phone: '' });
                 }}
                 className="ml-2 text-pink-500 font-semibold hover:text-pink-600 transition-colors"
               >
@@ -243,7 +218,6 @@ export default function ProfilePage() {
             </p>
           </div>
 
-          {/* Guest checkout */}
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-center text-sm text-gray-600 mb-3">
               Pas besoin de compte pour commander
@@ -260,21 +234,15 @@ export default function ProfilePage() {
     );
   }
 
-  // Vue connectée (après login) - PROFIL COMPLET
+  // Vue connectée
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-5xl mx-auto">
-        {/* En-tête du profil */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
           <div className="flex flex-col md:flex-row items-center gap-6">
-            {/* Avatar */}
             <div className="w-24 h-24 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
               {user.avatar_url ? (
-                <img 
-                  src={user.avatar_url} 
-                  alt="Profile" 
-                  className="w-24 h-24 rounded-full object-cover" 
-                />
+                <img src={user.avatar_url} alt="Profile" className="w-24 h-24 rounded-full object-cover" />
               ) : (
                 <span className="text-white text-4xl font-bold">
                   {user.full_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
@@ -282,11 +250,8 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Informations utilisateur */}
             <div className="flex-1 text-center md:text-left">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {user.full_name || 'Utilisateur'}
-              </h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{user.full_name || 'Utilisateur'}</h1>
               <div className="space-y-1">
                 <div className="flex items-center justify-center md:justify-start gap-2 text-gray-600">
                   <Mail size={16} />
@@ -301,7 +266,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Bouton déconnexion */}
             <button 
               onClick={handleLogout}
               disabled={loading}
@@ -313,9 +277,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Grille de sections */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Mes commandes */}
           <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
@@ -326,16 +288,12 @@ export default function ProfilePage() {
             <p className="text-gray-600 mb-4">Suivez vos achats et leur livraison</p>
             <div className="bg-gray-50 rounded-lg p-4 text-center">
               <p className="text-gray-500">Aucune commande pour le moment</p>
-              <button 
-                onClick={() => router.push('/shop')}
-                className="mt-3 text-pink-500 font-semibold hover:text-pink-600 transition-colors"
-              >
+              <button onClick={() => router.push('/shop')} className="mt-3 text-pink-500 font-semibold hover:text-pink-600 transition-colors">
                 Découvrir la boutique →
               </button>
             </div>
           </div>
 
-          {/* Mes looks favoris */}
           <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -346,16 +304,12 @@ export default function ProfilePage() {
             <p className="text-gray-600 mb-4">Retrouvez vos looks préférés sauvegardés</p>
             <div className="bg-gray-50 rounded-lg p-4 text-center">
               <p className="text-gray-500">Aucun look sauvegardé</p>
-              <button 
-                onClick={() => router.push('/')}
-                className="mt-3 text-purple-500 font-semibold hover:text-purple-600 transition-colors"
-              >
+              <button onClick={() => router.push('/')} className="mt-3 text-purple-500 font-semibold hover:text-purple-600 transition-colors">
                 Parcourir les looks →
               </button>
             </div>
           </div>
 
-          {/* Profil beauté */}
           <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -364,15 +318,11 @@ export default function ProfilePage() {
               <h2 className="text-xl font-bold text-gray-900">Profil beauté</h2>
             </div>
             <p className="text-gray-600 mb-4">Personnalisez vos recommandations</p>
-            <button 
-              onClick={() => router.push('/personalise-profile')}
-              className="w-full bg-green-50 text-green-600 py-3 rounded-lg font-semibold hover:bg-green-100 transition-colors"
-            >
+            <button onClick={() => router.push('/personalise-profile')} className="w-full bg-green-50 text-green-600 py-3 rounded-lg font-semibold hover:bg-green-100 transition-colors">
               Compléter mon profil beauté
             </button>
           </div>
 
-          {/* Informations du compte */}
           <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
