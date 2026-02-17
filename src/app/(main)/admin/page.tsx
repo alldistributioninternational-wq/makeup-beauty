@@ -1,12 +1,11 @@
 'use client';
 
-// ✅ Empêche le pré-rendu statique - nécessaire car utilise Supabase
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { BarChart3, Image, Package, PlusCircle, Settings, Upload } from 'lucide-react';
+import { BarChart3, Image, Package, PlusCircle, Settings } from 'lucide-react';
 
 interface Stats {
   totalLooks: number;
@@ -62,13 +61,6 @@ export default function AdminDashboard() {
       icon: Package,
       href: '/admin/products',
       color: 'from-purple-500 to-indigo-500',
-    },
-    {
-      title: 'Upload Médias',
-      description: 'Uploader des images et vidéos sur Cloudinary',
-      icon: Upload,
-      href: '/admin/upload',
-      color: 'from-blue-500 to-cyan-500',
     },
     {
       title: 'Paramètres',
@@ -151,7 +143,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Menu principal */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {menuItems.map((item) => (
             <Link
               key={item.href}
@@ -171,13 +163,6 @@ export default function AdminDashboard() {
               </div>
             </Link>
           ))}
-        </div>
-
-        <div className="mt-8 p-4 bg-blue-50 rounded-xl border border-blue-200">
-          <p className="text-sm text-blue-900">
-            💡 <strong>Astuce :</strong> Commencez par uploader vos médias sur Cloudinary, 
-            puis créez vos produits et looks !
-          </p>
         </div>
       </div>
     </div>
