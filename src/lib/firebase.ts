@@ -12,12 +12,13 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Variables globales
+// DEBUG - à supprimer après
+console.log('API KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.substring(0, 10));
+
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let analytics: Analytics | null = null;
 
-// Fonction pour initialiser Firebase (appelée uniquement côté client)
 function initializeFirebase() {
   if (typeof window === 'undefined') return;
   
@@ -33,7 +34,6 @@ function initializeFirebase() {
   return { app, auth, analytics };
 }
 
-// Getters qui initialisent au besoin
 function getFirebaseApp() {
   if (typeof window === 'undefined') return undefined;
   if (!app) initializeFirebase();
