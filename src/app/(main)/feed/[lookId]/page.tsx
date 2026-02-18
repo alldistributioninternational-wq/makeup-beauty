@@ -60,16 +60,14 @@ const CATEGORY_DISPLAY: Record<string, string> = {
   autre:       '📦 Autre',
 }
 
-// Ordre d'affichage
 const DISPLAY_ORDER = ['peau', 'yeux', 'cils', 'levres', 'sourcils', 'highlighter', 'blush', 'contour', 'autre']
 
 const DIFFICULTY_CONFIG: Record<string, { label: string; color: string }> = {
   'facile':        { label: 'Facile',        color: 'bg-green-100 text-green-700'   },
   'intermédiaire': { label: 'Intermédiaire', color: 'bg-yellow-100 text-yellow-700' },
-  'avancé':        { label: 'Avancé',        color: 'bg-red-100 text-red-700'       },
+  'difficile':     { label: 'Difficile',     color: 'bg-red-100 text-red-700'       },
 }
 
-// Normalise les vieilles catégories si besoin
 function normalizeCategory(cat: string): string {
   const known = Object.keys(CATEGORY_GROUPS)
   if (known.includes(cat)) return cat
@@ -143,7 +141,6 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
 
   if (!look) notFound()
 
-  // ✅ Grouper les produits par catégorie unifiée
   const allProducts = look.look_products || []
   const grouped: Record<string, LookProduct[]> = {}
   DISPLAY_ORDER.forEach(k => { grouped[k] = [] })
@@ -210,7 +207,10 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
 
   const imageUrl   = getCloudinaryUrl(look.cloudinary_image_id)
   const videoUrl   = look.cloudinary_video_id ? getCloudinaryVideoUrl(look.cloudinary_video_id) : null
-  const diffConfig = look.difficulty ? DIFFICULTY_CONFIG[look.difficulty.toLowerCase()] : null
+  
+  // ✅ Toujours afficher un badge difficulté (par défaut "Facile")
+  const diffKey = look.difficulty?.toLowerCase() || 'facile'
+  const diffConfig = DIFFICULTY_CONFIG[diffKey] || DIFFICULTY_CONFIG['facile']
 
   return (
     <div className="min-h-screen bg-white">
@@ -240,12 +240,11 @@ export default function LookDetailPage({ params }: { params: Promise<{ lookId: s
               {look.description && <p className="text-lg text-gray-600">{look.description}</p>}
             </div>
 
+            {/* ✅ Badge difficulté toujours affiché */}
             <div className="mb-4 flex items-center gap-3 flex-wrap">
-              {diffConfig && (
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${diffConfig.color}`}>
-                  <Zap className="h-3.5 w-3.5" />{diffConfig.label}
-                </span>
-              )}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${diffConfig.color}`}>
+                <Zap className="h-3.5 w-3.5" />{diffConfig.label}
+              </span>
               <button className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200">
                 <Heart className="h-4 w-4" />{look.likes || 0}
               </button>

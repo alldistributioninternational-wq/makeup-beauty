@@ -6,6 +6,7 @@ import { ArrowLeft, Sparkles, Check, Heart, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCloudinaryUrl } from '@/lib/cloudinary'
+import { useAuthStore } from '@/store/auth.store'
 
 // Type Look
 interface Look {
@@ -68,6 +69,8 @@ const QUESTIONS = [
 
 export default function PersonaliseProfilePage() {
   const router = useRouter()
+  const { user } = useAuthStore() // ✅ Récupère l'utilisateur connecté
+
   const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false)
   const [isQuizStarted, setIsQuizStarted] = useState(false)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -79,6 +82,7 @@ export default function PersonaliseProfilePage() {
   const [showResults, setShowResults] = useState(false)
   const [recommendedLooks, setRecommendedLooks] = useState<Look[]>([])
   const [allLooks, setAllLooks] = useState<Look[]>([])
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
 
   // ✅ Charger les looks depuis Supabase
   useEffect(() => {
@@ -95,22 +99,73 @@ export default function PersonaliseProfilePage() {
     fetchLooks()
   }, [])
 
+  // ✅ Charger les préférences depuis Supabase (par user_id) ou localStorage (non connecté)
   useEffect(() => {
-    const savedProfile = localStorage.getItem('userProfile')
-    if (savedProfile) {
-      setHasCompletedQuiz(true)
-      const profile = JSON.parse(savedProfile)
-      generateRecommendations(profile)
+    if (allLooks.length === 0) return
+
+    async function loadPreferences() {
+      setLoadingPrefs(true)
+
+      if (user) {
+        // Utilisateur connecté → on cherche SES préférences dans Supabase via son user_id unique
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+
+        if (data && !error) {
+          const profile = {
+            age: data.age,
+            favoriteBrands: data.favorite_brands || [],
+            makeupFrequency: data.makeup_frequency,
+            monthlyBudget: data.monthly_budget,
+            skinType: data.skin_type,
+          }
+          setHasCompletedQuiz(true)
+          generateRecommendations(profile)
+        }
+      } else {
+        // Non connecté → fallback localStorage
+        const savedProfile = localStorage.getItem('userProfile')
+        if (savedProfile) {
+          setHasCompletedQuiz(true)
+          generateRecommendations(JSON.parse(savedProfile))
+        }
+      }
+
+      setLoadingPrefs(false)
     }
-  }, [allLooks])
+
+    loadPreferences()
+  }, [allLooks, user])
 
   const currentQuestion = QUESTIONS[currentQuestionIndex]
   const isLastQuestion = currentQuestionIndex === QUESTIONS.length - 1
 
-  // ✅ Recommandations depuis Supabase
+  // ✅ Recommandations intelligentes basées sur les préférences
   const generateRecommendations = (profile: any) => {
-    const looks = allLooks.slice(0, 2)
-    setRecommendedLooks(looks)
+    let filtered = [...allLooks]
+
+    // Priorité aux looks dont les tags matchent les marques favorites
+    if (profile.favoriteBrands?.length > 0) {
+      const withMatchingTags = filtered.filter(look =>
+        look.tags?.some((tag: string) =>
+          profile.favoriteBrands.some((brand: string) =>
+            tag.toLowerCase().includes(brand.toLowerCase())
+          )
+        )
+      )
+      if (withMatchingTags.length > 0) {
+        // Les looks qui matchent passent en premier
+        filtered = [
+          ...withMatchingTags,
+          ...filtered.filter(l => !withMatchingTags.includes(l))
+        ]
+      }
+    }
+
+    setRecommendedLooks(filtered.slice(0, 6))
   }
 
   const handleAnswer = (answer: string) => {
@@ -162,22 +217,54 @@ export default function PersonaliseProfilePage() {
     }, 300)
   }
 
-  const completeQuiz = (lastAnswer: string) => {
+  // ✅ Sauvegarde dans Supabase (connecté) ou localStorage (non connecté)
+  const completeQuiz = async (lastAnswer: string) => {
     const finalProfile = {
       ...answers,
       [currentQuestion.id]: lastAnswer,
       favoriteBrands: [...selectedBrands, ...customBrands]
     }
 
-    localStorage.setItem('userProfile', JSON.stringify(finalProfile))
+    if (user) {
+      // ✅ Upsert : si la ligne existe déjà pour ce user_id, elle est mise à jour
+      // Sinon elle est créée — chaque user a UNE seule ligne dans user_preferences
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_id: user.id,
+          age: finalProfile.age,
+          favorite_brands: finalProfile.favoriteBrands,
+          makeup_frequency: finalProfile.makeupFrequency,
+          monthly_budget: finalProfile.monthlyBudget,
+          skin_type: finalProfile.skinType,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+
+      if (error) {
+        console.error('Erreur sauvegarde préférences:', error)
+      }
+    } else {
+      // Non connecté → localStorage
+      localStorage.setItem('userProfile', JSON.stringify(finalProfile))
+    }
+
     generateRecommendations(finalProfile)
     setIsQuizStarted(false)
     setShowResults(true)
     setHasCompletedQuiz(true)
   }
 
-  const resetQuiz = () => {
-    localStorage.removeItem('userProfile')
+  // ✅ Reset : supprime dans Supabase ou localStorage selon le cas
+  const resetQuiz = async () => {
+    if (user) {
+      await supabase
+        .from('user_preferences')
+        .delete()
+        .eq('user_id', user.id)
+    } else {
+      localStorage.removeItem('userProfile')
+    }
+
     setHasCompletedQuiz(false)
     setIsQuizStarted(false)
     setCurrentQuestionIndex(0)
@@ -186,6 +273,16 @@ export default function PersonaliseProfilePage() {
     setCustomBrands([])
     setCustomBrandInput('')
     setShowResults(false)
+    setRecommendedLooks([])
+  }
+
+  // Écran de chargement
+  if (loadingPrefs) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center">
+        <div className="text-white text-2xl font-bold animate-pulse">Chargement...</div>
+      </div>
+    )
   }
 
   // Écran d'accueil
@@ -194,7 +291,7 @@ export default function PersonaliseProfilePage() {
       <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center p-4 relative overflow-hidden">
         <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl animate-pulse"></div>
-        
+
         <div className="max-w-xl w-full relative z-10">
           <div className="text-center">
             <Link href="/" className="inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors mb-8 group">
@@ -209,9 +306,19 @@ export default function PersonaliseProfilePage() {
               <h1 className="text-5xl md:text-6xl font-black text-white mb-4 tracking-tight">
                 Ton Quiz Beauté
               </h1>
-              <p className="text-xl text-white/90 mb-8">
+              <p className="text-xl text-white/90 mb-2">
                 5 questions • 2 minutes • Looks personnalisés
               </p>
+              {/* ✅ Message selon si connecté ou non */}
+              {user ? (
+                <p className="text-white/70 text-sm">
+                  Connecté en tant que <span className="font-semibold">{user.full_name || user.email}</span> — tes préférences seront sauvegardées
+                </p>
+              ) : (
+                <p className="text-white/70 text-sm">
+                  Connecte-toi pour sauvegarder tes préférences sur tous tes appareils
+                </p>
+              )}
             </div>
 
             <button
@@ -265,7 +372,6 @@ export default function PersonaliseProfilePage() {
                 className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
-                  {/* ✅ Image Cloudinary */}
                   <img
                     src={getCloudinaryUrl(look.cloudinary_image_id)}
                     alt={look.title}
@@ -330,7 +436,7 @@ export default function PersonaliseProfilePage() {
 
       {/* Progress bar */}
       <div className="absolute top-0 left-0 right-0 h-2 bg-white/20">
-        <div 
+        <div
           className="h-full bg-white transition-all duration-500 ease-out shadow-lg shadow-white/50"
           style={{ width: `${((currentQuestionIndex + 1) / QUESTIONS.length) * 100}%` }}
         />

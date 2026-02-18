@@ -1,5 +1,4 @@
-// src/app/page.tsx
-// Version Supabase + Cloudinary - Looks chargés depuis la base de données
+// src/app/page.tsx - Version avec sections filtrées
 
 "use client";
 
@@ -12,9 +11,8 @@ import { useSavedLooksStore } from '@/store/saved-looks.store';
 import NewsletterSection from '@/components/layout/NewsletterSection';
 import Footer from '@/components/layout/Footer';
 import { supabase } from '@/lib/supabase';
-import { getCloudinaryUrl, getCloudinaryVideoUrl } from '@/lib/cloudinary';
+import { getCloudinaryUrl } from '@/lib/cloudinary';
 
-// Type Look depuis Supabase
 interface Look {
   id: string;
   title: string;
@@ -29,9 +27,11 @@ interface Look {
   creator_username?: string;
   tags?: string[];
   is_featured?: boolean;
+  show_in_trending?: boolean;
+  show_in_top_lips?: boolean;
+  show_in_top_eyes?: boolean;
 }
 
-// Composant séparé qui utilise useSearchParams
 function HomePageContent() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
@@ -43,8 +43,6 @@ function HomePageContent() {
   const [selectedFilter, setSelectedFilter] = useState('Tous');
   const [viewedLooks, setViewedLooks] = useState<string[]>([]);
   const [showExhaustedMessage, setShowExhaustedMessage] = useState(false);
-  
-  // ✅ NOUVEAU : State pour les looks depuis Supabase
   const [allLooks, setAllLooks] = useState<Look[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -53,7 +51,6 @@ function HomePageContent() {
   
   const LOOKS_PER_ROW = 4;
 
-  // ✅ CHARGER LES LOOKS DEPUIS SUPABASE
   useEffect(() => {
     async function fetchLooks() {
       setLoading(true);
@@ -71,7 +68,6 @@ function HomePageContent() {
     fetchLooks();
   }, []);
 
-  // Fonction pour normaliser les chaînes
   const normalizeString = (str: string) => {
     return str
       .toLowerCase()
@@ -79,7 +75,7 @@ function HomePageContent() {
       .replace(/[\u0300-\u036f]/g, "");
   };
 
-  // Filtrer les looks
+  // ✅ Filtrer avec priorité aux looks featured
   const getFilteredLooks = () => {
     let looks = allLooks;
 
@@ -91,42 +87,57 @@ function HomePageContent() {
         (look.creator_name && normalizeString(look.creator_name).includes(query)) ||
         (look.category && normalizeString(look.category).includes(query))
       );
-      return looks;
+    } else {
+      switch(selectedFilter) {
+        case 'Naturel':
+          looks = allLooks.filter(look => 
+            look.category === 'naturel' || 
+            (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'naturel' || normalizeString(tag) === 'natural'))
+          );
+          break;
+        case 'Glamour':
+          looks = allLooks.filter(look => 
+            look.category === 'glamour' || 
+            (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'glamour' || normalizeString(tag) === 'glam'))
+          );
+          break;
+        case 'Soirée':
+          looks = allLooks.filter(look => 
+            look.category === 'soirée' || 
+            (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'soiree' || normalizeString(tag) === 'evening'))
+          );
+          break;
+        case 'Tous les jours':
+          looks = allLooks.filter(look => 
+            look.category === 'tous-les-jours' || 
+            (look.tags && look.tags.some((tag: string) => 
+              normalizeString(tag) === 'quotidien' || 
+              normalizeString(tag) === 'tous les jours' ||
+              normalizeString(tag) === 'everyday' ||
+              normalizeString(tag) === 'casual'
+            ))
+          );
+          break;
+        default:
+          looks = allLooks;
+      }
     }
 
-    switch(selectedFilter) {
-      case 'Naturel':
-        return allLooks.filter(look => 
-          look.category === 'naturel' || 
-          (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'naturel' || normalizeString(tag) === 'natural'))
-        );
-      case 'Glamour':
-        return allLooks.filter(look => 
-          look.category === 'glamour' || 
-          (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'glamour' || normalizeString(tag) === 'glam'))
-        );
-      case 'Soirée':
-        return allLooks.filter(look => 
-          look.category === 'soirée' || 
-          (look.tags && look.tags.some((tag: string) => normalizeString(tag) === 'soiree' || normalizeString(tag) === 'evening'))
-        );
-      case 'Tous les jours':
-        return allLooks.filter(look => 
-          look.category === 'tous-les-jours' || 
-          (look.tags && look.tags.some((tag: string) => 
-            normalizeString(tag) === 'quotidien' || 
-            normalizeString(tag) === 'tous les jours' ||
-            normalizeString(tag) === 'everyday' ||
-            normalizeString(tag) === 'casual'
-          ))
-        );
-      default:
-        return allLooks;
-    }
+    // ✅ PRIORISER LES LOOKS FEATURED EN PREMIER
+    return looks.sort((a, b) => {
+      if (a.is_featured && !b.is_featured) return -1;
+      if (!a.is_featured && b.is_featured) return 1;
+      return 0;
+    });
   };
 
   const filteredLooks = getFilteredLooks();
   const totalRows = Math.ceil(filteredLooks.length / LOOKS_PER_ROW);
+
+  // ✅ Looks pour les sections filtrées
+  const trendingLooks = allLooks.filter(l => l.show_in_trending);
+  const lipLooks = allLooks.filter(l => l.show_in_top_lips);
+  const eyeLooks = allLooks.filter(l => l.show_in_top_eyes);
 
   useEffect(() => {
     setMounted(true);
@@ -206,12 +217,6 @@ function HomePageContent() {
   const currentLook = filteredLooks[currentLookIndex];
   const isCurrentLookLiked = mounted && currentLook && savedLookIds.includes(currentLook.id);
 
-  // Looks pour les sections spéciales
-  const trendingLooks = allLooks.slice(0, 3);
-  const lipLooks = allLooks.slice(3, 5);
-  const eyeLooks = allLooks.slice(5, 6);
-
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -223,7 +228,6 @@ function HomePageContent() {
     );
   }
 
-  // Fonction pour obtenir l'URL de l'image
   const getImageUrl = (look: Look) => {
     return getCloudinaryUrl(look.cloudinary_image_id);
   };
@@ -239,7 +243,6 @@ function HomePageContent() {
           </p>
         </div>
 
-        {/* Filtres */}
         <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide">
           {['Tous', 'Naturel', 'Glamour', 'Soirée', 'Tous les jours'].map(filter => (
             <button 
@@ -262,7 +265,6 @@ function HomePageContent() {
           </div>
         )}
 
-        {/* Look Tinder-style */}
         {!showExhaustedMessage && currentLook ? (
           <div className="flex flex-col justify-center px-4 bg-white py-2">
             <div className="relative w-full max-w-md mx-auto" style={{ maxHeight: '72vh' }}>
@@ -272,6 +274,12 @@ function HomePageContent() {
                   alt={currentLook.title}
                   className="w-full h-full object-cover"
                 />
+                {/* ✅ Badge Featured */}
+                {currentLook.is_featured && (
+                  <div className="absolute top-3 left-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                    ⭐ VEDETTE
+                  </div>
+                )}
               </Link>
 
               {mounted && (
@@ -354,9 +362,8 @@ function HomePageContent() {
 
         <div className="h-12"></div>
 
-        {/* SECTIONS EN BAS - MOBILE */}
+        {/* SECTIONS MOBILES */}
         <div className="px-4 py-8">
-          {/* Titre principal */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-black mb-3">UNE NOUVELLE FAÇON DE SHOPPER LA BEAUTÉ EN LIGNE.</h1>
             <p className="text-sm text-gray-700 leading-relaxed">
@@ -401,8 +408,7 @@ function HomePageContent() {
                 })}
               </div>
               <p className="text-base text-gray-900 leading-relaxed font-medium">
-                Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
-                ont conquis notre communauté et définissent les tendances beauté actuelles.
+                Découvrez les looks les plus populaires du moment.
               </p>
             </div>
           )}
@@ -442,8 +448,7 @@ function HomePageContent() {
                 })}
               </div>
               <p className="text-base text-gray-900 leading-relaxed font-medium">
-                Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
-                du nude naturel au rouge statement en passant par les glossy lips tendance.
+                Des lèvres parfaitement sublimées !
               </p>
             </div>
           )}
@@ -485,16 +490,16 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* SECTION HERO - MOBILE - À LA FIN */}
+          {/* SECTION HERO MOBILE */}
           <div className="w-full -mx-4 bg-black py-12 px-6 mt-12">
             <div className="flex flex-col">
-              {/* Texte en haut */}
               <div className="text-white mb-8">
                 <h2 className="text-3xl font-bold mb-6 leading-tight">
                   MAQUILLAGE POUR LES GENS QUI NE S'EXCUSENT PAS POUR LEURS STANDARDS ÉLEVÉS.
                 </h2>
                 <p className="text-sm mb-6 leading-relaxed">
-                  Qui veut être peu exigeant de toute façon ? Et depuis quand posséder un seul baume à lèvres légèrement teinté est une bonne chose ? À quiconque a lancé cette tendance "sans chichi", avec tout le respect que nous vous devons, nous pleurerions pour vous mais notre mascara est trop cher. C'est pourquoi nous serons audacieux et sans excuses en défendant l'esprit de toutes les personnes confiantes et prospères qui sont à parts égales style et substance. Le genre de personnes qui savent exactement ce qu'elles valent. Et exigent d'être traitées en conséquence.
+                  Qui veut être peu exigeant de toute façon ? À quiconque a lancé cette tendance "sans chichi", 
+                  avec tout le respect que nous vous devons, nous pleurerions pour vous mais notre mascara est trop cher.
                 </p>
                 <Link 
                   href="/about-us"
@@ -504,7 +509,6 @@ function HomePageContent() {
                 </Link>
               </div>
               
-              {/* Image en bas */}
               <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
                 <Image
                   src="/images/aboutus/aboutusimage.jpg"
@@ -523,7 +527,7 @@ function HomePageContent() {
     );
   }
 
-  // VERSION DESKTOP
+  // VERSION DESKTOP (identique avec sections filtrées)
   return (
     <>
       <main className="max-w-7xl mx-auto px-6 py-3">
@@ -532,7 +536,6 @@ function HomePageContent() {
           Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
         </p>
 
-        {/* Filtres Desktop */}
         <div className="flex justify-center gap-2 mb-3">
           {['Tous', 'Naturel', 'Glamour', 'Soirée', 'Tous les jours'].map(filter => (
             <button 
@@ -628,15 +631,13 @@ function HomePageContent() {
           )}
         </div>
 
-        {/* NOUVELLES SECTIONS EN BAS - DESKTOP */}
+        {/* SECTIONS DESKTOP */}
         <div className="py-12">
-          {/* Titre principal */}
           <div className="text-center mb-16">
             <h1 className="text-5xl font-bold text-black mb-4">UNE NOUVELLE FAÇON DE SHOPPER LA BEAUTÉ EN LIGNE.</h1>
             <p className="text-base text-gray-700 max-w-3xl mx-auto leading-relaxed">
               Parcourir des looks sur les réseaux sociaux, regarder des tutoriels et aller en magasin. 
-              Qui a le temps pour tout ça ? Certainement pas vous, alors nous réunissons vos influenceurs préférés, 
-              leurs looks les plus tendance et tutoriels et produits faciles à acheter, le tout en un seul endroit.
+              Qui a le temps pour tout ça ?
             </p>
           </div>
 
@@ -669,15 +670,6 @@ function HomePageContent() {
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                                {look.creator_name?.[0] || 'U'}
-                              </div>
-                              <div>
-                                <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
-                                <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
-                              </div>
-                            </div>
                             <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
                         </div>
@@ -686,10 +678,6 @@ function HomePageContent() {
                   );
                 })}
               </div>
-              <p className="text-lg text-gray-900 leading-relaxed font-medium">
-                Découvrez les looks les plus populaires du moment. Ces créations inspirantes 
-                ont conquis notre communauté et définissent les tendances beauté actuelles.
-              </p>
             </div>
           )}
 
@@ -722,15 +710,6 @@ function HomePageContent() {
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                                {look.creator_name?.[0] || 'U'}
-                              </div>
-                              <div>
-                                <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
-                                <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
-                              </div>
-                            </div>
                             <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
                         </div>
@@ -739,10 +718,6 @@ function HomePageContent() {
                   );
                 })}
               </div>
-              <p className="text-lg text-gray-900 leading-relaxed font-medium">
-                Des lèvres parfaitement sublimées ! Explorez nos looks lèvres préférés, 
-                du nude naturel au rouge statement en passant par les glossy lips tendance.
-              </p>
             </div>
           )}
 
@@ -775,15 +750,6 @@ function HomePageContent() {
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
-                                {look.creator_name?.[0] || 'U'}
-                              </div>
-                              <div>
-                                <p className="text-white text-sm font-semibold">{look.creator_name || 'User'}</p>
-                                <p className="text-white/80 text-xs">{look.creator_username || '@user'}</p>
-                              </div>
-                            </div>
                             <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
                         </div>
@@ -795,10 +761,9 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* SECTION HERO - DESKTOP - À LA FIN */}
+          {/* SECTION HERO DESKTOP */}
           <div className="w-full bg-pink-500 py-16 px-8 rounded-2xl">
             <div className="max-w-6xl mx-auto grid grid-cols-2 gap-12 items-center">
-              {/* Image à gauche */}
               <div className="relative aspect-[3/4] rounded-lg overflow-hidden">
                 <Image
                   src="/images/aboutus/aboutusimage.jpg"
@@ -808,13 +773,12 @@ function HomePageContent() {
                 />
               </div>
               
-              {/* Texte à droite */}
               <div className="text-white">
                 <h2 className="text-5xl font-bold mb-6 leading-tight">
                   MAQUILLAGE POUR LES GENS QUI NE S'EXCUSENT PAS POUR LEURS STANDARDS ÉLEVÉS.
                 </h2>
                 <p className="text-lg mb-8 leading-relaxed">
-                  Qui veut être peu exigeant de toute façon ? Et depuis quand posséder un seul baume à lèvres légèrement teinté est une bonne chose ? À quiconque a lancé cette tendance "sans chichi", avec tout le respect que nous vous devons, nous pleurerions pour vous mais notre mascara est trop cher. C'est pourquoi nous serons audacieux et sans excuses en défendant l'esprit de toutes les personnes confiantes et prospères qui sont à parts égales style et substance. Le genre de personnes qui savent exactement ce qu'elles valent. Et exigent d'être traitées en conséquence.
+                  Qui veut être peu exigeant de toute façon ?
                 </p>
                 <Link 
                   href="/about-us"
@@ -834,7 +798,6 @@ function HomePageContent() {
   );
 }
 
-// Composant principal avec Suspense
 export default function HomePage() {
   return (
     <Suspense fallback={
