@@ -4,19 +4,17 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import twilio from 'twilio'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID!,
-  process.env.TWILIO_AUTH_TOKEN!
-)
-
 export async function POST(req: NextRequest) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const twilioClient = twilio(
+    process.env.TWILIO_ACCOUNT_SID!,
+    process.env.TWILIO_AUTH_TOKEN!
+  )
+
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')!
 
@@ -84,7 +82,7 @@ export async function POST(req: NextRequest) {
 
       console.log('✅ Commande sauvegardée:', order.id)
 
-      await sendWhatsAppInvoice(order, items, totalAmount, session, orderNumber)
+      await sendWhatsAppInvoice(twilioClient, supabase, order, items, totalAmount, session, orderNumber)
 
     } catch (err) {
       console.error('❌ Erreur traitement commande:', err)
@@ -96,6 +94,8 @@ export async function POST(req: NextRequest) {
 }
 
 async function sendWhatsAppInvoice(
+  twilioClient: twilio.Twilio,
+  supabase: any,
   order: any,
   items: any[],
   total: number,

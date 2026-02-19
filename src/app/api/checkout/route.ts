@@ -2,16 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
-
 export async function POST(req: NextRequest) {
   try {
-    const { items, userId, sessionId } = await req.json()
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
 
+    const { items, userId, sessionId } = await req.json()
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Panier vide' }, { status: 400 })
     }
-
     const lineItems = items.map((item: any) => ({
       price_data: {
         currency: 'eur',
@@ -27,7 +25,6 @@ export async function POST(req: NextRequest) {
       },
       quantity: item.quantity || 1,
     }))
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
@@ -71,7 +68,6 @@ export async function POST(req: NextRequest) {
         ).slice(0, 490),
       },
     })
-
     return NextResponse.json({ url: session.url })
   } catch (err: any) {
     console.error('❌ Erreur création session Stripe:', err)
