@@ -4,9 +4,8 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import twilio from 'twilio'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' })
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
 
-// Supabase service role pour bypass RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -34,14 +33,12 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session
 
     try {
-      // Récupérer les line items
       const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
         expand: ['data.price.product']
       })
 
       const metadata = session.metadata || {}
 
-      // Items depuis les metadata (plus détaillés) ou depuis Stripe
       const items = metadata.cart_items
         ? JSON.parse(metadata.cart_items)
         : lineItems.data.map(item => ({
@@ -55,10 +52,8 @@ export async function POST(req: NextRequest) {
 
       const totalAmount = (session.amount_total || 0) / 100
 
-      // Générer un numéro de commande lisible
       const orderNumber = `CMD-${Date.now().toString().slice(-6)}`
 
-      // ✅ Adapter aux colonnes existantes de ta table
       const { data: order, error } = await supabase
         .from('orders')
         .insert({
@@ -75,7 +70,7 @@ export async function POST(req: NextRequest) {
           customer_name: session.customer_details?.name || null,
           customer_email: session.customer_details?.email || null,
           customer_phone: session.customer_details?.phone || null,
-          shipping_address: session.shipping_details?.address || null,
+          shipping_address: session.collected_information?.shipping_details?.address || null,
           whatsapp_sent: false,
           updated_at: new Date().toISOString(),
         })
@@ -89,7 +84,6 @@ export async function POST(req: NextRequest) {
 
       console.log('✅ Commande sauvegardée:', order.id)
 
-      // Envoyer la facture WhatsApp
       await sendWhatsAppInvoice(order, items, totalAmount, session, orderNumber)
 
     } catch (err) {
@@ -113,7 +107,7 @@ async function sendWhatsAppInvoice(
       `• ${item.name}${item.shade ? ` (${item.shade})` : ''} x${item.quantity} — ${Number(item.price).toFixed(2)}€`
     ).join('\n')
 
-    const shippingAddress = session.shipping_details?.address
+    const shippingAddress = session.collected_information?.shipping_details?.address
     const shippingBlock = shippingAddress
       ? `\n📦 *Livraison*\n${shippingAddress.line1 || ''}${shippingAddress.line2 ? '\n' + shippingAddress.line2 : ''}\n${shippingAddress.city || ''} ${shippingAddress.postal_code || ''}\n${shippingAddress.country || ''}`
       : ''
@@ -152,7 +146,6 @@ ${shippingBlock}
       body: message,
     })
 
-    // Marquer whatsapp_sent = true
     await supabase
       .from('orders')
       .update({ whatsapp_sent: true, updated_at: new Date().toISOString() })
@@ -161,6 +154,5 @@ ${shippingBlock}
     console.log('✅ WhatsApp facture envoyée pour', orderNumber)
   } catch (err) {
     console.error('❌ Erreur envoi WhatsApp:', err)
-    // On ne throw pas — la commande est déjà sauvegardée même si WhatsApp échoue
   }
 }
