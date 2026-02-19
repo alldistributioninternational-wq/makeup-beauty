@@ -11,6 +11,8 @@ export interface CartItem {
   image: string;
   shade: string;
   quantity: number;
+  skinTone?: string;
+  look_id?: string; // ✅ ID du look pour récupérer la vidéo tutoriel après achat
 }
 
 interface CartStore {
@@ -32,13 +34,11 @@ export const useCartStore = create<CartStore>()(
       // Ajouter un produit au panier
       addItem: (item: CartItem) => {
         set((state) => {
-          // Vérifier si le produit avec cette shade existe déjà
           const existingItem = state.items.find(
             (i) => i.productId === item.productId && i.shadeId === item.shadeId
           );
 
           if (existingItem) {
-            // Si existe, augmenter la quantité
             return {
               items: state.items.map((i) =>
                 i.productId === item.productId && i.shadeId === item.shadeId
@@ -47,7 +47,6 @@ export const useCartStore = create<CartStore>()(
               ),
             };
           } else {
-            // Sinon, ajouter le nouveau produit
             return {
               items: [...state.items, item],
             };
@@ -68,7 +67,6 @@ export const useCartStore = create<CartStore>()(
       updateQuantity: (productId: string, quantity: number, shadeId: string) => {
         set((state) => {
           if (quantity <= 0) {
-            // Si quantité = 0, retirer le produit
             return {
               items: state.items.filter(
                 (i) => !(i.productId === productId && i.shadeId === shadeId)

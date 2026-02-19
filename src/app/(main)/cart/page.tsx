@@ -1,16 +1,14 @@
 // src/app/(main)/cart/page.tsx
-// Version Supabase + Cloudinary
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCartStore } from '@/store/cart.store';
+import { useAuthStore } from '@/store/auth.store';
 import { supabase } from '@/lib/supabase';
 import { getCloudinaryUrl } from '@/lib/cloudinary';
-import { ArrowLeft, Trash2, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 
-// Type Product
 interface Product {
   id: string;
   name: string;
@@ -23,67 +21,113 @@ interface Product {
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getTotalPrice, clearCart } = useCartStore();
+  const { user } = useAuthStore();
   const [savedSkinTone, setSavedSkinTone] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  // Palette de carnations
   const skinTones = [
-    { id: '1', name: 'Très clair rosé', hex: '#FFE4D6' },
-    { id: '2', name: 'Clair rosé', hex: '#FFDCC5' },
-    { id: '3', name: 'Clair neutre', hex: '#FFD4B3' },
-    { id: '4', name: 'Clair chaud', hex: '#FFCBA4' },
-    { id: '5', name: 'Moyen clair rosé', hex: '#F5C6A5' },
-    { id: '6', name: 'Moyen clair neutre', hex: '#EAB896' },
-    { id: '7', name: 'Moyen clair chaud', hex: '#E0AC7E' },
-    { id: '8', name: 'Moyen neutre', hex: '#D4A276' },
-    { id: '9', name: 'Moyen chaud', hex: '#C99869' },
-    { id: '10', name: 'Moyen doré', hex: '#BE8E5C' },
-    { id: '11', name: 'Moyen foncé neutre', hex: '#B1824F' },
-    { id: '12', name: 'Moyen foncé chaud', hex: '#A47444' },
-    { id: '13', name: 'Foncé neutre', hex: '#8B6341' },
-    { id: '14', name: 'Foncé chaud', hex: '#7A5638' },
-    { id: '15', name: 'Très foncé neutre', hex: '#6B4A31' },
-    { id: '16', name: 'Très foncé chaud', hex: '#5D3F2A' },
-    { id: '17', name: 'Profond neutre', hex: '#4E3423' },
-    { id: '18', name: 'Profond chaud', hex: '#43291E' },
-    { id: '19', name: 'Très profond', hex: '#3A1F19' },
-    { id: '20', name: 'Ultra profond', hex: '#2C1614' },
+    { id: '1',  name: 'Très clair rosé',      hex: '#FFE4D6' },
+    { id: '2',  name: 'Clair rosé',            hex: '#FFDCC5' },
+    { id: '3',  name: 'Clair neutre',          hex: '#FFD4B3' },
+    { id: '4',  name: 'Clair chaud',           hex: '#FFCBA4' },
+    { id: '5',  name: 'Moyen clair rosé',      hex: '#F5C6A5' },
+    { id: '6',  name: 'Moyen clair neutre',    hex: '#EAB896' },
+    { id: '7',  name: 'Moyen clair chaud',     hex: '#E0AC7E' },
+    { id: '8',  name: 'Moyen neutre',          hex: '#D4A276' },
+    { id: '9',  name: 'Moyen chaud',           hex: '#C99869' },
+    { id: '10', name: 'Moyen doré',            hex: '#BE8E5C' },
+    { id: '11', name: 'Moyen foncé neutre',    hex: '#B1824F' },
+    { id: '12', name: 'Moyen foncé chaud',     hex: '#A47444' },
+    { id: '13', name: 'Foncé neutre',          hex: '#8B6341' },
+    { id: '14', name: 'Foncé chaud',           hex: '#7A5638' },
+    { id: '15', name: 'Très foncé neutre',     hex: '#6B4A31' },
+    { id: '16', name: 'Très foncé chaud',      hex: '#5D3F2A' },
+    { id: '17', name: 'Profond neutre',        hex: '#4E3423' },
+    { id: '18', name: 'Profond chaud',         hex: '#43291E' },
+    { id: '19', name: 'Très profond',          hex: '#3A1F19' },
+    { id: '20', name: 'Ultra profond',         hex: '#2C1614' },
   ];
 
-  // ✅ Charger les produits depuis Supabase
   useEffect(() => {
     async function fetchProducts() {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('products')
-        .select('*');
-
-      if (!error && data) {
-        setProducts(data);
-      }
+      const { data, error } = await supabase.from('products').select('*');
+      if (!error && data) setProducts(data);
       setLoading(false);
     }
-
     fetchProducts();
-
-    // Charger la carnation
     const tone = localStorage.getItem('userSkinTone');
     setSavedSkinTone(tone);
   }, []);
 
   const isSkinProduct = (category: string) => {
-    return ['foundation', 'concealer', 'powder', 'teint', 'correcteur', 'poudre'].includes(category.toLowerCase());
+    return ['foundation', 'concealer', 'powder', 'teint', 'correcteur', 'poudre', 'peau'].includes(category.toLowerCase());
   };
 
-  // Trouver un produit par ID
-  const getProduct = (productId: string) => {
-    return products.find(p => p.id === productId);
-  };
+  const getProduct = (productId: string) => products.find(p => p.id === productId);
 
   const total = getTotalPrice();
-  const shipping = total > 50 ? 0 : 5.99;
-  const finalTotal = total + shipping;
+  const finalTotal = total; // ✅ Livraison toujours gratuite
+
+  // ✅ Checkout Stripe avec look_id
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+
+    try {
+      const sessionId = localStorage.getItem('sessionId') || '';
+
+      const cartItemsForStripe = items.map(item => {
+        const product = getProduct(item.productId);
+        let shadeName = item.shade || '';
+
+        if (!shadeName && product?.shades && item.shadeId) {
+          const shades = typeof product.shades === 'string'
+            ? JSON.parse(product.shades)
+            : product.shades;
+          const shade = shades.find((s: any) => s.id === item.shadeId);
+          shadeName = shade?.name || '';
+        }
+
+        return {
+          name: product?.name || (item as any).name || '',
+          brand: product?.brand || (item as any).brand || '',
+          shade: shadeName,
+          quantity: item.quantity,
+          price: product ? Number(product.price) : Number((item as any).price),
+          image: product?.cloudinary_id ? getCloudinaryUrl(product.cloudinary_id) : '',
+          look_id: (item as any).look_id || '', // ✅ passer le look_id pour la vidéo après achat
+        };
+      });
+
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cartItemsForStripe,
+          userId: user?.id || null,
+          sessionId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        clearCart();
+        window.location.href = data.url;
+      } else {
+        setCheckoutError(data.error || 'Une erreur est survenue.');
+      }
+    } catch (err) {
+      console.error('Erreur checkout:', err);
+      setCheckoutError('Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -96,7 +140,6 @@ export default function CartPage() {
             </Link>
           </div>
         </header>
-
         <main className="mx-auto max-w-2xl px-4 py-16 text-center">
           <div className="mb-6 text-6xl">🛒</div>
           <h1 className="mb-3 text-2xl font-bold text-gray-900">Votre panier est vide</h1>
@@ -118,7 +161,7 @@ export default function CartPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" />
           <p className="text-gray-600">Chargement du panier...</p>
         </div>
       </div>
@@ -152,10 +195,11 @@ export default function CartPage() {
                 const product = getProduct(item.productId);
                 if (!product) return null;
 
-                // Parser shades
-                let shades = [];
+                let shades: any[] = [];
                 if (product.shades) {
-                  shades = typeof product.shades === 'string' ? JSON.parse(product.shades) : product.shades;
+                  shades = typeof product.shades === 'string'
+                    ? JSON.parse(product.shades)
+                    : product.shades;
                 }
 
                 const shade = shades.find((s: any) => s.id === item.shadeId);
@@ -164,8 +208,8 @@ export default function CartPage() {
 
                 return (
                   <div key={`${item.productId}-${item.shadeId}`} className="flex gap-4 rounded-xl border border-gray-200 p-4">
-                    {/* Product image */}
-                    <Link href={`/shop/products/${product.id}`} className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                    <Link href={`/shop/products/${product.id}`}
+                      className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
                       <img
                         src={getCloudinaryUrl(product.cloudinary_id)}
                         alt={product.name}
@@ -173,36 +217,43 @@ export default function CartPage() {
                       />
                     </Link>
 
-                    {/* Product info */}
                     <div className="flex flex-1 flex-col">
                       <div className="mb-2 flex items-start justify-between gap-4">
                         <div>
-                          <Link href={`/shop/products/${product.id}`} className="font-semibold text-gray-900 hover:underline">
+                          <Link href={`/shop/products/${product.id}`}
+                            className="font-semibold text-gray-900 hover:underline">
                             {product.name}
                           </Link>
                           <p className="text-sm text-gray-500">{product.brand}</p>
-                          
+                          {/* ✅ Badge "Look" si item vient d'un look */}
+                          {(item as any).look_id && (
+                            <span className="inline-block mt-1 text-xs bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">
+                              🎬 Tutoriel inclus
+                            </span>
+                          )}
                           {isSkin && skinTone ? (
                             <div className="mt-1 flex items-center gap-2">
-                              <div className="h-4 w-4 rounded-full border border-gray-300" style={{ backgroundColor: skinTone.hex }} />
+                              <div className="h-4 w-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: skinTone.hex }} />
                               <span className="text-sm text-gray-600">{skinTone.name}</span>
                             </div>
-                          ) : (
-                            shade && (
-                              <div className="mt-1 flex items-center gap-2">
-                                <div className="h-4 w-4 rounded-full border border-gray-300" style={{ backgroundColor: shade.hex }} />
-                                <span className="text-sm text-gray-600">{shade.name}</span>
-                              </div>
-                            )
-                          )}
+                          ) : shade ? (
+                            <div className="mt-1 flex items-center gap-2">
+                              <div className="h-4 w-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: shade.hex }} />
+                              <span className="text-sm text-gray-600">{shade.name}</span>
+                            </div>
+                          ) : null}
                         </div>
 
-                        <button onClick={() => removeItem(item.productId, item.shadeId)} className="text-gray-400 transition-colors hover:text-red-600">
+                        <button
+                          onClick={() => removeItem(item.productId, item.shadeId)}
+                          className="text-gray-400 transition-colors hover:text-red-600"
+                        >
                           <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
 
-                      {/* Quantity & price */}
                       <div className="mt-auto flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
@@ -219,8 +270,9 @@ export default function CartPage() {
                             <Plus className="h-4 w-4" />
                           </button>
                         </div>
-
-                        <p className="font-bold text-gray-900">{(Number(product.price) * item.quantity).toFixed(2)}€</p>
+                        <p className="font-bold text-gray-900">
+                          {(Number(product.price) * item.quantity).toFixed(2)}€
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -229,24 +281,27 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* Order summary */}
+          {/* Récapitulatif */}
           <div className="lg:col-span-1">
             <div className="sticky top-24 rounded-xl border border-gray-200 p-6">
               <h2 className="mb-6 text-xl font-bold text-gray-900">Récapitulatif</h2>
 
               <div className="space-y-3 border-b border-gray-200 pb-4">
                 <div className="flex justify-between text-gray-600">
-                  <span>Sous-total</span>
+                  <span>Sous-total ({items.reduce((acc, i) => acc + i.quantity, 0)} articles)</span>
                   <span className="font-semibold">{total.toFixed(2)}€</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Livraison</span>
-                  <span className="font-semibold">{shipping === 0 ? 'Gratuite' : `${shipping.toFixed(2)}€`}</span>
+                  <span className="font-semibold text-green-600">🎉 Gratuite</span>
                 </div>
-                {total < 50 && (
-                  <p className="text-xs text-gray-500">
-                    Plus que {(50 - total).toFixed(2)}€ pour la livraison gratuite !
-                  </p>
+                {/* ✅ Badge tutoriel si items avec look */}
+                {items.some((i: any) => i.look_id) && (
+                  <div className="flex items-center gap-2 bg-pink-50 rounded-lg px-3 py-2">
+                    <span className="text-xs text-pink-600 font-medium">
+                      🎬 Tutoriel vidéo inclus après achat
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -255,13 +310,45 @@ export default function CartPage() {
                 <span>{finalTotal.toFixed(2)}€</span>
               </div>
 
-              <Link href="/checkout" className="block w-full rounded-lg bg-gray-900 py-4 text-center font-semibold text-white transition-colors hover:bg-gray-800">
-                Passer la commande
-              </Link>
+              {checkoutError && (
+                <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3">
+                  <p className="text-sm text-red-600">{checkoutError}</p>
+                </div>
+              )}
 
-              <div className="mt-6 space-y-2 text-center text-xs text-gray-500">
-                <p>✓ Paiement sécurisé</p>
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className={`flex w-full items-center justify-center gap-2 rounded-lg py-4 font-semibold text-white transition-colors ${
+                  checkoutLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-800'
+                }`}
+              >
+                {checkoutLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                    Redirection...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="h-5 w-5" />
+                    Passer la commande
+                  </>
+                )}
+              </button>
+
+              {!user && (
+                <p className="mt-3 text-center text-xs text-gray-400">
+                  <Link href="/login" className="text-pink-500 font-medium hover:underline">
+                    Connecte-toi
+                  </Link>{' '}
+                  pour suivre tes commandes
+                </p>
+              )}
+
+              <div className="mt-4 space-y-1.5 text-center text-xs text-gray-500">
+                <p>🔒 Paiement sécurisé par Stripe</p>
                 <p>✓ Retours gratuits sous 30 jours</p>
+                <p>✓ Livraison toujours gratuite</p>
               </div>
             </div>
           </div>

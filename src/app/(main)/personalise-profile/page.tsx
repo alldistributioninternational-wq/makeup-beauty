@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase'
 import { getCloudinaryUrl } from '@/lib/cloudinary'
 import { useAuthStore } from '@/store/auth.store'
 
-// Type Look
 interface Look {
   id: string
   title: string
@@ -17,7 +16,15 @@ interface Look {
   creator_username?: string
   likes?: number
   tags?: string[]
-  look_products?: any[]
+  is_featured?: boolean
+  look_products?: {
+    id: string
+    products: {
+      id: string
+      brand: string
+      name: string
+    }
+  }[]
 }
 
 type UserProfile = {
@@ -67,9 +74,83 @@ const QUESTIONS = [
   }
 ]
 
+// ─── Helpers tracking ────────────────────────────────────────────────────────
+
+function getOrCreateSessionId(): string {
+  let sessionId = localStorage.getItem('sessionId')
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    localStorage.setItem('sessionId', sessionId)
+  }
+  return sessionId
+}
+
+async function trackEvent(
+  userId: string | null,
+  eventType: 'view_look' | 'like_look' | 'add_to_cart' | 'purchase',
+  meta: Record<string, any>
+) {
+  const sessionId = getOrCreateSessionId()
+  const payload = {
+    user_id: userId || null,
+    session_id: sessionId,
+    event_type: eventType,
+    meta,
+    created_at: new Date().toISOString(),
+  }
+  await supabase.from('user_events').insert(payload)
+  const stored = JSON.parse(localStorage.getItem('userEvents') || '[]')
+  stored.push(payload)
+  localStorage.setItem('userEvents', JSON.stringify(stored.slice(-100)))
+}
+
+// ─── Algorithme : filtre strict puis score ────────────────────────────────────
+
+function scoreAndSortLooks(looks: Look[], profile: any, events: any[]): Look[] {
+  const interactedIds = new Set(events.map((e: any) => e.meta?.look_id).filter(Boolean))
+  const favBrands: string[] = (profile.favoriteBrands || []).map((b: string) => b.toLowerCase())
+
+  // ✅ ÉTAPE 1 : Filtre strict — only looks with at least 1 matching brand or tag
+  const matchingLooks = looks.filter(look => {
+    const productBrands: string[] = (look.look_products || [])
+      .map((lp: any) => lp.products?.brand?.toLowerCase())
+      .filter(Boolean)
+
+    const tags = (look.tags || []).map(t => t.toLowerCase())
+
+    const hasProductMatch = favBrands.some(brand =>
+      productBrands.some(pb => pb.includes(brand) || brand.includes(pb))
+    )
+    const hasTagMatch = favBrands.some(brand =>
+      tags.some(tag => tag.includes(brand) || brand.includes(tag))
+    )
+
+    return hasProductMatch || hasTagMatch
+  })
+
+  // ✅ ÉTAPE 2 : Fallback si aucun match → looks vedettes uniquement
+  const looksToScore = matchingLooks.length > 0
+    ? matchingLooks
+    : looks.filter(l => l.is_featured)
+
+  // ✅ ÉTAPE 3 : Scorer et trier
+  const scored = looksToScore.map(look => {
+    let score = 0
+    if (look.is_featured) score += 2
+    score += (look.likes || 0) * 0.01
+    if (interactedIds.has(look.id)) score -= 10
+    return { look, score }
+  })
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map(s => s.look)
+}
+
+// ─── Composant principal ─────────────────────────────────────────────────────
+
 export default function PersonaliseProfilePage() {
   const router = useRouter()
-  const { user } = useAuthStore() // ✅ Récupère l'utilisateur connecté
+  const { user } = useAuthStore()
 
   const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false)
   const [isQuizStarted, setIsQuizStarted] = useState(false)
@@ -83,23 +164,51 @@ export default function PersonaliseProfilePage() {
   const [recommendedLooks, setRecommendedLooks] = useState<Look[]>([])
   const [allLooks, setAllLooks] = useState<Look[]>([])
   const [loadingPrefs, setLoadingPrefs] = useState(true)
+  const [userEvents, setUserEvents] = useState<any[]>([])
 
-  // ✅ Charger les looks depuis Supabase
+  const currentQuestion = QUESTIONS[currentQuestionIndex]
+  const isLastQuestion = currentQuestionIndex === QUESTIONS.length - 1
+
+  // ── Charger les looks AVEC produits et marques ────────────────────────────
   useEffect(() => {
     async function fetchLooks() {
       const { data, error } = await supabase
         .from('looks')
-        .select(`*, look_products(id)`)
+        .select(`
+          *,
+          look_products(
+            id,
+            products(id, brand, name)
+          )
+        `)
         .order('created_at', { ascending: false })
 
-      if (!error && data) {
-        setAllLooks(data)
-      }
+      if (!error && data) setAllLooks(data)
     }
     fetchLooks()
   }, [])
 
-  // ✅ Charger les préférences depuis Supabase (par user_id) ou localStorage (non connecté)
+  // ── Charger les events passés ─────────────────────────────────────────────
+  useEffect(() => {
+    async function fetchEvents() {
+      let events: any[] = []
+      if (user) {
+        const { data } = await supabase
+          .from('user_events')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(200)
+        events = data || []
+      } else {
+        events = JSON.parse(localStorage.getItem('userEvents') || '[]')
+      }
+      setUserEvents(events)
+    }
+    fetchEvents()
+  }, [user])
+
+  // ── Charger préférences existantes ────────────────────────────────────────
   useEffect(() => {
     if (allLooks.length === 0) return
 
@@ -107,7 +216,6 @@ export default function PersonaliseProfilePage() {
       setLoadingPrefs(true)
 
       if (user) {
-        // Utilisateur connecté → on cherche SES préférences dans Supabase via son user_id unique
         const { data, error } = await supabase
           .from('user_preferences')
           .select('*')
@@ -123,14 +231,15 @@ export default function PersonaliseProfilePage() {
             skinType: data.skin_type,
           }
           setHasCompletedQuiz(true)
-          generateRecommendations(profile)
+          const sorted = scoreAndSortLooks(allLooks, profile, userEvents)
+          setRecommendedLooks(sorted.slice(0, 6))
         }
       } else {
-        // Non connecté → fallback localStorage
         const savedProfile = localStorage.getItem('userProfile')
         if (savedProfile) {
           setHasCompletedQuiz(true)
-          generateRecommendations(JSON.parse(savedProfile))
+          const sorted = scoreAndSortLooks(allLooks, JSON.parse(savedProfile), userEvents)
+          setRecommendedLooks(sorted.slice(0, 6))
         }
       }
 
@@ -138,36 +247,9 @@ export default function PersonaliseProfilePage() {
     }
 
     loadPreferences()
-  }, [allLooks, user])
+  }, [allLooks, user, userEvents])
 
-  const currentQuestion = QUESTIONS[currentQuestionIndex]
-  const isLastQuestion = currentQuestionIndex === QUESTIONS.length - 1
-
-  // ✅ Recommandations intelligentes basées sur les préférences
-  const generateRecommendations = (profile: any) => {
-    let filtered = [...allLooks]
-
-    // Priorité aux looks dont les tags matchent les marques favorites
-    if (profile.favoriteBrands?.length > 0) {
-      const withMatchingTags = filtered.filter(look =>
-        look.tags?.some((tag: string) =>
-          profile.favoriteBrands.some((brand: string) =>
-            tag.toLowerCase().includes(brand.toLowerCase())
-          )
-        )
-      )
-      if (withMatchingTags.length > 0) {
-        // Les looks qui matchent passent en premier
-        filtered = [
-          ...withMatchingTags,
-          ...filtered.filter(l => !withMatchingTags.includes(l))
-        ]
-      }
-    }
-
-    setRecommendedLooks(filtered.slice(0, 6))
-  }
-
+  // ── Quiz handlers ─────────────────────────────────────────────────────────
   const handleAnswer = (answer: string) => {
     if (currentQuestion.id === 'favoriteBrands') {
       const newSelection = selectedBrands.includes(answer)
@@ -202,22 +284,19 @@ export default function PersonaliseProfilePage() {
   }
 
   const handleBrandsNext = () => {
-    const totalBrands = selectedBrands.length + customBrands.length
-    if (totalBrands === 0) {
+    if (selectedBrands.length === 0 && customBrands.length === 0) {
       alert('Veuillez sélectionner au moins une marque')
       return
     }
-
     setIsAnimating(true)
     setAnswers(prev => ({ ...prev, favoriteBrands: [...selectedBrands, ...customBrands] }))
-
     setTimeout(() => {
       setCurrentQuestionIndex(prev => prev + 1)
       setIsAnimating(false)
     }, 300)
   }
 
-  // ✅ Sauvegarde dans Supabase (connecté) ou localStorage (non connecté)
+  // ── Sauvegarder et afficher les résultats ─────────────────────────────────
   const completeQuiz = async (lastAnswer: string) => {
     const finalProfile = {
       ...answers,
@@ -226,45 +305,37 @@ export default function PersonaliseProfilePage() {
     }
 
     if (user) {
-      // ✅ Upsert : si la ligne existe déjà pour ce user_id, elle est mise à jour
-      // Sinon elle est créée — chaque user a UNE seule ligne dans user_preferences
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: user.id,
-          age: finalProfile.age,
-          favorite_brands: finalProfile.favoriteBrands,
-          makeup_frequency: finalProfile.makeupFrequency,
-          monthly_budget: finalProfile.monthlyBudget,
-          skin_type: finalProfile.skinType,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' })
+      await supabase.from('user_preferences').upsert({
+        user_id: user.id,
+        age: finalProfile.age,
+        favorite_brands: finalProfile.favoriteBrands,
+        makeup_frequency: finalProfile.makeupFrequency,
+        monthly_budget: finalProfile.monthlyBudget,
+        skin_type: finalProfile.skinType,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
 
-      if (error) {
-        console.error('Erreur sauvegarde préférences:', error)
-      }
+      await trackEvent(user.id, 'view_look', { action: 'quiz_completed', brands: finalProfile.favoriteBrands })
     } else {
-      // Non connecté → localStorage
       localStorage.setItem('userProfile', JSON.stringify(finalProfile))
     }
 
-    generateRecommendations(finalProfile)
+    // ✅ Filtre strict + score avec le profil final directement
+    const sorted = scoreAndSortLooks(allLooks, finalProfile, userEvents)
+    setRecommendedLooks(sorted.slice(0, 6))
+
     setIsQuizStarted(false)
     setShowResults(true)
     setHasCompletedQuiz(true)
   }
 
-  // ✅ Reset : supprime dans Supabase ou localStorage selon le cas
+  // ── Reset quiz ────────────────────────────────────────────────────────────
   const resetQuiz = async () => {
     if (user) {
-      await supabase
-        .from('user_preferences')
-        .delete()
-        .eq('user_id', user.id)
+      await supabase.from('user_preferences').delete().eq('user_id', user.id)
     } else {
       localStorage.removeItem('userProfile')
     }
-
     setHasCompletedQuiz(false)
     setIsQuizStarted(false)
     setCurrentQuestionIndex(0)
@@ -276,7 +347,15 @@ export default function PersonaliseProfilePage() {
     setRecommendedLooks([])
   }
 
-  // Écran de chargement
+  const handleLookClick = async (look: Look) => {
+    await trackEvent(user?.id || null, 'view_look', {
+      look_id: look.id,
+      look_title: look.title,
+      tags: look.tags,
+    })
+  }
+
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (loadingPrefs) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center">
@@ -285,59 +364,50 @@ export default function PersonaliseProfilePage() {
     )
   }
 
-  // Écran d'accueil
+  // ── Écran d'accueil ───────────────────────────────────────────────────────
   if (!isQuizStarted && !hasCompletedQuiz) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl animate-pulse" />
 
-        <div className="max-w-xl w-full relative z-10">
-          <div className="text-center">
-            <Link href="/" className="inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors mb-8 group">
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium">Retour</span>
-            </Link>
+        <div className="max-w-xl w-full relative z-10 text-center">
+          <Link href="/" className="inline-flex items-center gap-2 text-white/90 hover:text-white transition-colors mb-8 group">
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium">Retour</span>
+          </Link>
 
-            <div className="mb-8">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 backdrop-blur-xl rounded-full mb-6 animate-bounce">
-                <Sparkles className="w-12 h-12 text-white" />
-              </div>
-              <h1 className="text-5xl md:text-6xl font-black text-white mb-4 tracking-tight">
-                Ton Quiz Beauté
-              </h1>
-              <p className="text-xl text-white/90 mb-2">
-                5 questions • 2 minutes • Looks personnalisés
-              </p>
-              {/* ✅ Message selon si connecté ou non */}
-              {user ? (
-                <p className="text-white/70 text-sm">
-                  Connecté en tant que <span className="font-semibold">{user.full_name || user.email}</span> — tes préférences seront sauvegardées
-                </p>
-              ) : (
-                <p className="text-white/70 text-sm">
-                  Connecte-toi pour sauvegarder tes préférences sur tous tes appareils
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={() => setIsQuizStarted(true)}
-              className="group relative w-full py-6 px-8 bg-white text-gray-900 text-xl font-bold rounded-2xl hover:bg-pink-50 transition-all duration-300 shadow-2xl hover:shadow-pink-500/50 transform hover:scale-105 overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center justify-center gap-3">
-                Démarrer le quiz
-                <Sparkles className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity"></div>
-            </button>
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-white/20 backdrop-blur-xl rounded-full mb-6 animate-bounce">
+            <Sparkles className="w-12 h-12 text-white" />
           </div>
+          <h1 className="text-5xl md:text-6xl font-black text-white mb-4 tracking-tight">Ton Quiz Beauté</h1>
+          <p className="text-xl text-white/90 mb-2">5 questions • 2 minutes • Looks personnalisés</p>
+          {user ? (
+            <p className="text-white/70 text-sm mb-8">
+              Connectée en tant que <span className="font-semibold">{user.full_name || user.email}</span> — tes préférences seront sauvegardées
+            </p>
+          ) : (
+            <p className="text-white/70 text-sm mb-8">
+              Connecte-toi pour sauvegarder tes préférences sur tous tes appareils
+            </p>
+          )}
+
+          <button
+            onClick={() => setIsQuizStarted(true)}
+            className="group relative w-full py-6 px-8 bg-white text-gray-900 text-xl font-bold rounded-2xl hover:bg-pink-50 transition-all duration-300 shadow-2xl hover:shadow-pink-500/50 transform hover:scale-105 overflow-hidden"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-3">
+              Démarrer le quiz
+              <Sparkles className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity" />
+          </button>
         </div>
       </div>
     )
   }
 
-  // Écran résultats
+  // ── Résultats ─────────────────────────────────────────────────────────────
   if ((hasCompletedQuiz || showResults) && !isQuizStarted) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -359,58 +429,103 @@ export default function PersonaliseProfilePage() {
               <Check className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl md:text-5xl font-black text-white mb-3">Tes Looks Personnalisés</h1>
-            <p className="text-xl text-white/90">Basés sur tes préférences beauté</p>
+            <p className="text-xl text-white/90">
+              {recommendedLooks.length > 0
+                ? `${recommendedLooks.length} look${recommendedLooks.length > 1 ? 's' : ''} sélectionné${recommendedLooks.length > 1 ? 's' : ''} pour toi`
+                : 'Basés sur tes préférences beauté'}
+            </p>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recommendedLooks.map((look) => (
-              <Link
-                key={look.id}
-                href={`/feed/${look.id}`}
-                className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-              >
-                <div className="relative aspect-[3/4] overflow-hidden">
-                  <img
-                    src={getCloudinaryUrl(look.cloudinary_image_id)}
-                    alt={look.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      <h3 className="text-white font-bold text-xl mb-2">{look.title}</h3>
-                      <div className="flex items-center gap-4 text-white/90 text-sm">
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-4 h-4" />
-                          {look.likes || 0}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <ShoppingBag className="w-4 h-4" />
-                          {look.look_products?.length || 0}
-                        </span>
+          {recommendedLooks.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg mb-2">Aucun look trouvé avec tes marques favorites.</p>
+              <p className="text-sm text-gray-400 mb-6">Essaie d'ajouter d'autres marques ou explore tous les looks.</p>
+              <div className="flex gap-4 justify-center">
+                <button onClick={resetQuiz} className="px-6 py-3 bg-pink-500 text-white font-semibold rounded-lg hover:bg-pink-600 transition-colors">
+                  Refaire le quiz
+                </button>
+                <Link href="/" className="px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+                  Voir tous les looks
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {recommendedLooks.map((look) => {
+                  const lookBrands = [...new Set(
+                    (look.look_products || [])
+                      .map((lp: any) => lp.products?.brand)
+                      .filter(Boolean)
+                  )] as string[]
+
+                  return (
+                    <Link
+                      key={look.id}
+                      href={`/feed/${look.id}`}
+                      onClick={() => handleLookClick(look)}
+                      className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+                    >
+                      <div className="relative aspect-[3/4] overflow-hidden">
+                        <img
+                          src={getCloudinaryUrl(look.cloudinary_image_id)}
+                          alt={look.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        {look.is_featured && (
+                          <div className="absolute top-3 left-3 bg-black text-white text-xs font-bold px-3 py-1 rounded-full">
+                            ⭐ Vedette
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="absolute bottom-0 left-0 right-0 p-6">
+                            <h3 className="text-white font-bold text-xl mb-2">{look.title}</h3>
+                            <div className="flex items-center gap-4 text-white/90 text-sm">
+                              <span className="flex items-center gap-1">
+                                <Heart className="w-4 h-4" />
+                                {look.likes || 0}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <ShoppingBag className="w-4 h-4" />
+                                {look.look_products?.length || 0} produits
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
-                      {look.creator_name?.[0] || 'U'}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{look.creator_name || 'User'}</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {look.tags?.slice(0, 2).map(tag => (
-                      <span key={tag} className="text-xs bg-pink-100 text-pink-600 px-2 py-1 rounded-full">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
+                            {look.creator_name?.[0] || 'U'}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">{look.creator_name || 'User'}</span>
+                        </div>
+                        {/* Marques des produits du look */}
+                        {lookBrands.length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap mb-2">
+                            {lookBrands.slice(0, 3).map((brand: string) => (
+                              <span key={brand} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                                {brand}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          {look.tags?.slice(0, 2).map(tag => (
+                            <span key={tag} className="text-xs bg-pink-100 text-pink-600 px-2 py-1 rounded-full">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
           <div className="mt-12 text-center">
             <div className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl p-8 text-white">
@@ -426,15 +541,14 @@ export default function PersonaliseProfilePage() {
     )
   }
 
-  // Quiz en cours
+  // ── Quiz en cours ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center p-4 overflow-hidden relative">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-pink-300/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-pink-300/20 rounded-full blur-3xl" />
       </div>
 
-      {/* Progress bar */}
       <div className="absolute top-0 left-0 right-0 h-2 bg-white/20">
         <div
           className="h-full bg-white transition-all duration-500 ease-out shadow-lg shadow-white/50"
@@ -518,7 +632,7 @@ export default function PersonaliseProfilePage() {
                       className={`py-4 px-4 text-base font-bold rounded-xl transition-all duration-300 shadow-lg transform hover:scale-105 ${
                         isSelected
                           ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white scale-105'
-                          : 'bg-white/95 backdrop-blur-xl hover:bg-white text-gray-800 hover:border-pink-300'
+                          : 'bg-white/95 backdrop-blur-xl hover:bg-white text-gray-800'
                       }`}
                       style={{ animationDelay: `${index * 30}ms` }}
                     >

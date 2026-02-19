@@ -66,7 +66,6 @@ export function getCloudinaryVideoUrl(
  * Obtenir le srcset pour images responsive (désactivé pour l'instant)
  */
 export function getResponsiveSrcSet(cloudinaryId: string): string {
-  // Retourner l'URL de base seulement
   return getCloudinaryUrl(cloudinaryId);
 }
 
@@ -74,7 +73,6 @@ export function getResponsiveSrcSet(cloudinaryId: string): string {
  * Obtenir une image placeholder en blur (pour meilleure UX)
  */
 export function getBlurPlaceholder(cloudinaryId: string): string {
-  // Retourner l'URL de base
   return getCloudinaryUrl(cloudinaryId);
 }
 
