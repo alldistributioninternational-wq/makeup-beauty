@@ -7,13 +7,15 @@ import { Search, X, LogOut } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
-// Composant séparé qui utilise useSearchParams
 function HeaderContent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [cartItemCount, setCartItemCount] = useState(0);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // ✅ Nom du site depuis Supabase
+  const [siteName, setSiteName] = useState('Ilma Skin');
   
   const getTotalItems = useCartStore((state) => state.getTotalItems);
   const { user, logout, initAuth } = useAuthStore();
@@ -25,12 +27,21 @@ function HeaderContent() {
     setCartItemCount(getTotalItems());
   }, [getTotalItems]);
 
-  // Initialiser Firebase Auth
   useEffect(() => {
     initAuth();
   }, [initAuth]);
 
-  // Charger la recherche depuis l'URL au chargement
+  // ✅ Charger le nom du site depuis Supabase
+  useEffect(() => {
+    supabase
+      .from('site_settings')
+      .select('site_name')
+      .single()
+      .then(({ data }) => {
+        if (data?.site_name) setSiteName(data.site_name)
+      })
+  }, [])
+
   useEffect(() => {
     const searchFromUrl = searchParams.get('search');
     if (searchFromUrl) {
@@ -41,19 +52,14 @@ function HeaderContent() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!searchQuery.trim()) {
       router.push('/');
       setIsSearchOpen(false);
       return;
     }
-
     const searchUrl = `/?search=${encodeURIComponent(searchQuery.trim())}`;
     router.push(searchUrl);
-    
-    setTimeout(() => {
-      setIsSearchOpen(false);
-    }, 100);
+    setTimeout(() => { setIsSearchOpen(false); }, 100);
   };
 
   const clearSearch = () => {
@@ -66,10 +72,7 @@ function HeaderContent() {
     setSearchQuery(suggestion);
     const searchUrl = `/?search=${encodeURIComponent(suggestion)}`;
     router.push(searchUrl);
-    
-    setTimeout(() => {
-      setIsSearchOpen(false);
-    }, 100);
+    setTimeout(() => { setIsSearchOpen(false); }, 100);
   };
 
   const handleLogout = async () => {
@@ -78,7 +81,6 @@ function HeaderContent() {
     router.push('/');
   };
 
-  // Fermer le menu quand on clique ailleurs
   useEffect(() => {
     const handleClickOutside = () => setShowProfileMenu(false);
     if (showProfileMenu) {
@@ -98,65 +100,28 @@ function HeaderContent() {
             <Search size={20} />
           </button>
 
+          {/* ✅ Nom du site dynamique */}
           <Link href="/">
             <h1 className="text-xl font-bold text-gray-900 cursor-pointer hover:text-pink-600 transition-colors">
-              Ilma Skin
+              {siteName}
             </h1>
           </Link>
 
           <div className="flex items-center gap-3">
-            {/* Lien vers les looks sauvegardés */}
-            <Link 
-              href="/saved-looks" 
-              className="relative hover:opacity-80 transition-opacity"
-              title="Mes looks favoris"
-            >
-              <Image
-                src="/icons/heart.png"
-                alt="Favoris"
-                width={20}
-                height={20}
-              />
+            <Link href="/saved-looks" className="relative hover:opacity-80 transition-opacity" title="Mes looks favoris">
+              <Image src="/icons/heart.png" alt="Favoris" width={20} height={20} />
             </Link>
 
-            {/* Lien vers le profil personnalisé */}
-            <Link 
-              href="/personalise-profile" 
-              className="relative hover:opacity-80 transition-opacity"
-              title="Personnaliser mon profil"
-            >
-              <Image
-                src="/icons/genetic.png"
-                alt="Profil génétique"
-                width={20}
-                height={20}
-              />
+            <Link href="/personalise-profile" className="relative hover:opacity-80 transition-opacity" title="Personnaliser mon profil">
+              <Image src="/icons/genetic.png" alt="Profil génétique" width={20} height={20} />
             </Link>
 
-            <Link 
-              href="/shop" 
-              className="relative hover:opacity-80 transition-opacity"
-              title="Boutique"
-            >
-              <Image
-                src="/icons/shopping-bag.png"
-                alt="Boutique"
-                width={20}
-                height={20}
-              />
+            <Link href="/shop" className="relative hover:opacity-80 transition-opacity" title="Boutique">
+              <Image src="/icons/shopping-bag.png" alt="Boutique" width={20} height={20} />
             </Link>
 
-            <Link 
-              href="/cart" 
-              className="relative hover:opacity-80 transition-opacity"
-              title="Panier"
-            >
-              <Image
-                src="/icons/basket.png"
-                alt="Panier"
-                width={20}
-                height={20}
-              />
+            <Link href="/cart" className="relative hover:opacity-80 transition-opacity" title="Panier">
+              <Image src="/icons/basket.png" alt="Panier" width={20} height={20} />
               {cartItemCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold">
                   {cartItemCount}
@@ -164,26 +129,16 @@ function HeaderContent() {
               )}
             </Link>
 
-            {/* Icône Profile avec dropdown si connecté */}
             <div className="relative">
               {user ? (
                 <>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowProfileMenu(!showProfileMenu);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); }}
                     className="relative hover:opacity-80 transition-opacity"
                     title="Mon profil"
                   >
                     {user.avatar_url ? (
-                      <Image
-                        src={user.avatar_url}
-                        alt="Mon profil"
-                        width={20}
-                        height={20}
-                        className="rounded-full"
-                      />
+                      <Image src={user.avatar_url} alt="Mon profil" width={20} height={20} className="rounded-full" />
                     ) : (
                       <div className="w-5 h-5 bg-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
                         {user.full_name?.[0] || user.email[0].toUpperCase()}
@@ -191,31 +146,19 @@ function HeaderContent() {
                     )}
                   </button>
 
-                  {/* Dropdown Menu */}
                   {showProfileMenu && (
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-900">{user.full_name || 'Utilisateur'}</p>
                         <p className="text-xs text-gray-500 truncate">{user.email}</p>
                       </div>
-                      <Link 
-                        href="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
+                      <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => setShowProfileMenu(false)}>
                         Mon profil
                       </Link>
-                      <Link 
-                        href="/profile/orders"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setShowProfileMenu(false)}
-                      >
+                      <Link href="/profile/orders" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => setShowProfileMenu(false)}>
                         Mes commandes
                       </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                      >
+                      <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2">
                         <LogOut size={16} />
                         Déconnexion
                       </button>
@@ -223,17 +166,8 @@ function HeaderContent() {
                   )}
                 </>
               ) : (
-                <Link 
-                  href="/profile" 
-                  className="relative hover:opacity-80 transition-opacity"
-                  title="Se connecter"
-                >
-                  <Image
-                    src="/icons/profil.png"
-                    alt="Se connecter"
-                    width={20}
-                    height={20}
-                  />
+                <Link href="/profile" className="relative hover:opacity-80 transition-opacity" title="Se connecter">
+                  <Image src="/icons/profil.png" alt="Se connecter" width={20} height={20} />
                 </Link>
               )}
             </div>
@@ -252,19 +186,11 @@ function HeaderContent() {
                 autoFocus
               />
               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-                <button
-                  type="submit"
-                  className="p-1.5 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
-                >
+                <button type="submit" className="p-1.5 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors">
                   <Search size={16} />
                 </button>
                 {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={clearSearch}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Effacer la recherche"
-                  >
+                  <button type="button" onClick={clearSearch} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors" title="Effacer la recherche">
                     <X size={16} />
                   </button>
                 )}
@@ -273,9 +199,7 @@ function HeaderContent() {
 
             {searchQuery && (
               <div className="mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-                <p className="text-sm text-gray-600">
-                  Appuyez sur Entrée pour rechercher "{searchQuery}"
-                </p>
+                <p className="text-sm text-gray-600">Appuyez sur Entrée pour rechercher "{searchQuery}"</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <span className="text-xs text-gray-500">Suggestions:</span>
                   {['soirée', 'naturel', 'glamour', 'tous les jours'].map((suggestion) => (
@@ -304,6 +228,7 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="w-10 h-10"></div>
+            {/* ✅ Fallback aussi avec texte statique en attendant */}
             <Link href="/">
               <h1 className="text-xl font-bold text-gray-900">Ilma Skin</h1>
             </Link>

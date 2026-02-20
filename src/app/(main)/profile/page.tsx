@@ -1,8 +1,8 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/store/auth.store';
-import { User, Mail, Phone, LogOut, Loader2, CheckCircle, Package, ChevronDown, ChevronUp, Truck, Clock, XCircle, Edit2, Lock, Save, X } from 'lucide-react';
+import { User, Mail, Phone, LogOut, Loader2, CheckCircle, Package, ChevronDown, ChevronUp, Truck, Clock, XCircle, Edit2, Lock, Save, X, Download } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
@@ -33,6 +33,7 @@ interface Order {
   order_number?: string
   status: string
   items: OrderItem[]
+  look_ids?: string[]  // ✅
   total_amount: number
   customer_name?: string
   shipping_address?: any
@@ -58,22 +59,19 @@ export default function ProfilePage() {
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
   const [formData, setFormData] = useState({ email: '', password: '', fullName: '', phone: '' });
 
-  // Orders
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+  const [downloadingTutorial, setDownloadingTutorial] = useState<string | null>(null) // ✅
 
-  // Edit profil
   const [editingInfo, setEditingInfo] = useState(false)
   const [infoForm, setInfoForm] = useState({ firstName: '', lastName: '', phone: '' })
   const [infoLoading, setInfoLoading] = useState(false)
 
-  // Changer email
   const [editingEmail, setEditingEmail] = useState(false)
   const [emailForm, setEmailForm] = useState({ newEmail: '', password: '' })
   const [emailLoading, setEmailLoading] = useState(false)
 
-  // Changer mot de passe
   const [editingPassword, setEditingPassword] = useState(false)
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordLoading, setPasswordLoading] = useState(false)
@@ -81,7 +79,6 @@ export default function ProfilePage() {
   useEffect(() => { initAuth(); }, [initAuth]);
   useEffect(() => { if (error) setShowErrorToast(true); }, [error]);
 
-  // Pré-remplir le formulaire avec les infos existantes
   useEffect(() => {
     if (user) {
       const parts = (user.full_name || '').split(' ')
@@ -93,53 +90,66 @@ export default function ProfilePage() {
     }
   }, [user])
 
-  // Charger les commandes
-  useEffect(() => {
-    async function fetchOrders() {
-      if (!user) return
-      setOrdersLoading(true)
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      if (!error && data) setOrders(data)
-      setOrdersLoading(false)
-    }
-    fetchOrders()
+  const fetchOrders = useCallback(async () => {
+    if (!user) return
+    setOrdersLoading(true)
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (!error && data) setOrders(data)
+    setOrdersLoading(false)
   }, [user])
 
-  const showToast = (message: string, type = 'success') => {
-    setToast({ message, type })
+  useEffect(() => {
+    fetchOrders()
+    const justPurchased = sessionStorage.getItem('just_purchased')
+    if (justPurchased) {
+      sessionStorage.removeItem('just_purchased')
+      const interval = setInterval(fetchOrders, 3000)
+      setTimeout(() => clearInterval(interval), 15000)
+      return () => clearInterval(interval)
+    }
+  }, [fetchOrders])
+
+  // ✅ Télécharger le tutoriel via l'API — URL Cloudinary jamais exposée
+  const handleDownloadTutorial = async (orderId: string) => {
+    setDownloadingTutorial(orderId)
+    try {
+      const response = await fetch('/api/tutorial/' + orderId)
+      if (!response.ok) throw new Error('Tutoriel non disponible')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'mon-tutoriel-makeup.mp4'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      showToast('Erreur lors du téléchargement', 'error')
+    } finally {
+      setDownloadingTutorial(null)
+    }
   }
 
-  // ── Sauvegarder infos personnelles ───────────────────────────────────────
+  const showToast = (message: string, type = 'success') => setToast({ message, type })
+
   const handleSaveInfo = async () => {
     setInfoLoading(true)
     try {
       const fullName = `${infoForm.firstName} ${infoForm.lastName}`.trim()
-
-      // Mettre à jour dans Supabase profiles
       const { error: dbError } = await supabase
         .from('profiles')
-        .update({
-          full_name: fullName,
-          phone: infoForm.phone,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ full_name: fullName, phone: infoForm.phone, updated_at: new Date().toISOString() })
         .eq('id', user!.id)
-
       if (dbError) throw dbError
-
-      // Mettre à jour les metadata Supabase Auth
-      await supabase.auth.updateUser({
-        data: { full_name: fullName, phone: infoForm.phone }
-      })
-
+      await supabase.auth.updateUser({ data: { full_name: fullName, phone: infoForm.phone } })
       showToast('Informations mises à jour ✅')
       setEditingInfo(false)
-
-      // Refresh user dans le store
       await initAuth()
     } catch (err: any) {
       showToast(err.message || 'Erreur lors de la mise à jour', 'error')
@@ -148,7 +158,6 @@ export default function ProfilePage() {
     }
   }
 
-  // ── Changer email ─────────────────────────────────────────────────────────
   const handleChangeEmail = async () => {
     if (!emailForm.newEmail) return showToast('Entrez un nouvel email', 'error')
     setEmailLoading(true)
@@ -159,23 +168,16 @@ export default function ProfilePage() {
       setEditingEmail(false)
       setEmailForm({ newEmail: '', password: '' })
     } catch (err: any) {
-      showToast(err.message || 'Erreur lors du changement d\'email', 'error')
+      showToast(err.message || "Erreur lors du changement d'email", 'error')
     } finally {
       setEmailLoading(false)
     }
   }
 
-  // ── Changer mot de passe ──────────────────────────────────────────────────
   const handleChangePassword = async () => {
-    if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
-      return showToast('Remplis tous les champs', 'error')
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      return showToast('Les mots de passe ne correspondent pas', 'error')
-    }
-    if (passwordForm.newPassword.length < 6) {
-      return showToast('Le mot de passe doit faire au moins 6 caractères', 'error')
-    }
+    if (!passwordForm.newPassword || !passwordForm.confirmPassword) return showToast('Remplis tous les champs', 'error')
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) return showToast('Les mots de passe ne correspondent pas', 'error')
+    if (passwordForm.newPassword.length < 6) return showToast('Le mot de passe doit faire au moins 6 caractères', 'error')
     setPasswordLoading(true)
     try {
       const { error } = await supabase.auth.updateUser({ password: passwordForm.newPassword })
@@ -213,7 +215,6 @@ export default function ProfilePage() {
     try { await logout(); router.push('/'); } catch (err) { console.error(err); }
   };
 
-  // ── Non connecté ──────────────────────────────────────────────────────────
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-4">
@@ -229,7 +230,6 @@ export default function ProfilePage() {
               {showLoginForm ? 'Connectez-vous pour accéder à votre profil' : 'Créez votre compte pour sauvegarder vos looks préférés'}
             </p>
           </div>
-
           {showSuccessMessage && (
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
               <CheckCircle className="text-green-500" size={24} />
@@ -239,14 +239,13 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {!showLoginForm && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nom complet <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                  <input type="text" name="fullName" value={formData.fullName}
+                  <input type="text" value={formData.fullName}
                     onChange={e => setFormData({ ...formData, fullName: e.target.value })}
                     placeholder="Votre nom complet" required={!showLoginForm}
                     className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none transition-colors" />
@@ -257,7 +256,7 @@ export default function ProfilePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Email <span className="text-red-500">*</span></label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input type="email" name="email" value={formData.email}
+                <input type="email" value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   placeholder="votre@email.com" required
                   className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none transition-colors" />
@@ -268,7 +267,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone <span className="text-gray-400 text-xs">(optionnel)</span></label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                  <input type="tel" name="phone" value={formData.phone}
+                  <input type="tel" value={formData.phone}
                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+33 6 12 34 56 78"
                     className="w-full pl-10 pr-4 py-3 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none transition-colors" />
@@ -277,7 +276,7 @@ export default function ProfilePage() {
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe <span className="text-red-500">*</span></label>
-              <input type="password" name="password" value={formData.password}
+              <input type="password" value={formData.password}
                 onChange={e => setFormData({ ...formData, password: e.target.value })}
                 placeholder="••••••••" required minLength={6}
                 className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none transition-colors" />
@@ -289,7 +288,6 @@ export default function ProfilePage() {
               {loading ? 'Chargement...' : (showLoginForm ? 'Se connecter' : 'Créer mon compte')}
             </button>
           </form>
-
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               {showLoginForm ? "Pas encore de compte ?" : "Déjà un compte ?"}
@@ -310,12 +308,9 @@ export default function ProfilePage() {
     );
   }
 
-  // ── Connecté ──────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="max-w-3xl mx-auto space-y-6">
 
@@ -343,7 +338,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ── Informations personnelles ─────────────────────────────────── */}
+        {/* Informations personnelles */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
@@ -353,13 +348,11 @@ export default function ProfilePage() {
               <h2 className="text-lg font-bold text-gray-900">Informations personnelles</h2>
             </div>
             {!editingInfo && (
-              <button onClick={() => setEditingInfo(true)}
-                className="flex items-center gap-1.5 text-sm text-pink-500 font-semibold hover:text-pink-600 transition-colors">
+              <button onClick={() => setEditingInfo(true)} className="flex items-center gap-1.5 text-sm text-pink-500 font-semibold hover:text-pink-600 transition-colors">
                 <Edit2 size={15} /> Modifier
               </button>
             )}
           </div>
-
           {!editingInfo ? (
             <div className="grid md:grid-cols-3 gap-3">
               <div className="bg-gray-50 rounded-xl p-3">
@@ -380,34 +373,22 @@ export default function ProfilePage() {
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">Prénom</label>
-                  <input type="text" value={infoForm.firstName}
-                    onChange={e => setInfoForm({ ...infoForm, firstName: e.target.value })}
-                    placeholder="Ton prénom"
-                    className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
+                  <input type="text" value={infoForm.firstName} onChange={e => setInfoForm({ ...infoForm, firstName: e.target.value })} placeholder="Ton prénom" className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">Nom</label>
-                  <input type="text" value={infoForm.lastName}
-                    onChange={e => setInfoForm({ ...infoForm, lastName: e.target.value })}
-                    placeholder="Ton nom"
-                    className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
+                  <input type="text" value={infoForm.lastName} onChange={e => setInfoForm({ ...infoForm, lastName: e.target.value })} placeholder="Ton nom" className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Téléphone</label>
-                <input type="tel" value={infoForm.phone}
-                  onChange={e => setInfoForm({ ...infoForm, phone: e.target.value })}
-                  placeholder="+33 6 12 34 56 78"
-                  className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
+                <input type="tel" value={infoForm.phone} onChange={e => setInfoForm({ ...infoForm, phone: e.target.value })} placeholder="+33 6 12 34 56 78" className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={handleSaveInfo} disabled={infoLoading}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold text-sm hover:bg-pink-600 transition-colors disabled:opacity-50">
-                  {infoLoading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                  Sauvegarder
+                <button onClick={handleSaveInfo} disabled={infoLoading} className="flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold text-sm hover:bg-pink-600 transition-colors disabled:opacity-50">
+                  {infoLoading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Sauvegarder
                 </button>
-                <button onClick={() => setEditingInfo(false)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
+                <button onClick={() => setEditingInfo(false)} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
                   <X size={16} /> Annuler
                 </button>
               </div>
@@ -415,7 +396,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* ── Changer email ─────────────────────────────────────────────── */}
+        {/* Changer email */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
@@ -428,31 +409,23 @@ export default function ProfilePage() {
               </div>
             </div>
             {!editingEmail && (
-              <button onClick={() => setEditingEmail(true)}
-                className="flex items-center gap-1.5 text-sm text-pink-500 font-semibold hover:text-pink-600 transition-colors">
+              <button onClick={() => setEditingEmail(true)} className="flex items-center gap-1.5 text-sm text-pink-500 font-semibold hover:text-pink-600 transition-colors">
                 <Edit2 size={15} /> Modifier
               </button>
             )}
           </div>
-
           {editingEmail && (
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Nouvel email</label>
-                <input type="email" value={emailForm.newEmail}
-                  onChange={e => setEmailForm({ ...emailForm, newEmail: e.target.value })}
-                  placeholder="nouveau@email.com"
-                  className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
+                <input type="email" value={emailForm.newEmail} onChange={e => setEmailForm({ ...emailForm, newEmail: e.target.value })} placeholder="nouveau@email.com" className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
               </div>
               <p className="text-xs text-gray-400">Un email de confirmation sera envoyé à ta nouvelle adresse.</p>
               <div className="flex gap-2">
-                <button onClick={handleChangeEmail} disabled={emailLoading}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold text-sm hover:bg-pink-600 transition-colors disabled:opacity-50">
-                  {emailLoading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                  Confirmer
+                <button onClick={handleChangeEmail} disabled={emailLoading} className="flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold text-sm hover:bg-pink-600 transition-colors disabled:opacity-50">
+                  {emailLoading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Confirmer
                 </button>
-                <button onClick={() => { setEditingEmail(false); setEmailForm({ newEmail: '', password: '' }) }}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
+                <button onClick={() => { setEditingEmail(false); setEmailForm({ newEmail: '', password: '' }) }} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
                   <X size={16} /> Annuler
                 </button>
               </div>
@@ -460,7 +433,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* ── Changer mot de passe ──────────────────────────────────────── */}
+        {/* Changer mot de passe */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
@@ -470,13 +443,11 @@ export default function ProfilePage() {
               <h2 className="text-lg font-bold text-gray-900">Mot de passe</h2>
             </div>
             {!editingPassword && (
-              <button onClick={() => setEditingPassword(true)}
-                className="flex items-center gap-1.5 text-sm text-pink-500 font-semibold hover:text-pink-600 transition-colors">
+              <button onClick={() => setEditingPassword(true)} className="flex items-center gap-1.5 text-sm text-pink-500 font-semibold hover:text-pink-600 transition-colors">
                 <Edit2 size={15} /> Modifier
               </button>
             )}
           </div>
-
           {!editingPassword ? (
             <div className="bg-gray-50 rounded-xl p-3">
               <p className="text-sm text-gray-500">••••••••••••</p>
@@ -485,26 +456,17 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Nouveau mot de passe</label>
-                <input type="password" value={passwordForm.newPassword}
-                  onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                  placeholder="Minimum 6 caractères"
-                  className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
+                <input type="password" value={passwordForm.newPassword} onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} placeholder="Minimum 6 caractères" className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Confirmer le mot de passe</label>
-                <input type="password" value={passwordForm.confirmPassword}
-                  onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  placeholder="Répète le mot de passe"
-                  className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
+                <input type="password" value={passwordForm.confirmPassword} onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} placeholder="Répète le mot de passe" className="w-full px-3 py-2.5 rounded-lg border-2 border-gray-200 focus:border-pink-500 focus:outline-none text-sm" />
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={handleChangePassword} disabled={passwordLoading}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold text-sm hover:bg-pink-600 transition-colors disabled:opacity-50">
-                  {passwordLoading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                  Mettre à jour
+                <button onClick={handleChangePassword} disabled={passwordLoading} className="flex items-center gap-1.5 px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold text-sm hover:bg-pink-600 transition-colors disabled:opacity-50">
+                  {passwordLoading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Mettre à jour
                 </button>
-                <button onClick={() => { setEditingPassword(false); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }) }}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
+                <button onClick={() => { setEditingPassword(false); setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' }) }} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-200 transition-colors">
                   <X size={16} /> Annuler
                 </button>
               </div>
@@ -512,18 +474,24 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* ── Commandes ─────────────────────────────────────────────────── */}
+        {/* Commandes */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
-              <Package className="text-pink-500" size={20} />
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                <Package className="text-pink-500" size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Mes commandes</h2>
+                <p className="text-xs text-gray-400">
+                  {ordersLoading ? 'Chargement...' : `${orders.length} commande${orders.length > 1 ? 's' : ''}`}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Mes commandes</h2>
-              <p className="text-xs text-gray-400">
-                {ordersLoading ? 'Chargement...' : `${orders.length} commande${orders.length > 1 ? 's' : ''}`}
-              </p>
-            </div>
+            <button onClick={fetchOrders} disabled={ordersLoading} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-pink-500 transition-colors disabled:opacity-40">
+              <Loader2 className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
+              Actualiser
+            </button>
           </div>
 
           {ordersLoading && (
@@ -535,8 +503,7 @@ export default function ProfilePage() {
           {!ordersLoading && orders.length === 0 && (
             <div className="bg-gray-50 rounded-xl p-6 text-center">
               <p className="text-gray-500 text-sm mb-3">Aucune commande pour le moment</p>
-              <button onClick={() => router.push('/shop')}
-                className="text-pink-500 font-semibold hover:text-pink-600 transition-colors text-sm">
+              <button onClick={() => router.push('/shop')} className="text-pink-500 font-semibold hover:text-pink-600 transition-colors text-sm">
                 Découvrir la boutique →
               </button>
             </div>
@@ -549,6 +516,7 @@ export default function ProfilePage() {
                 const StatusIcon = status.icon
                 const isExpanded = expandedOrder === order.id
                 const items: OrderItem[] = Array.isArray(order.items) ? order.items : []
+                const hasTutorial = order.look_ids && order.look_ids.length > 0 // ✅
 
                 return (
                   <div key={order.id} className="border border-gray-100 rounded-xl overflow-hidden">
@@ -562,7 +530,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <p className="font-bold text-gray-900 text-sm">
-                            {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
+                            {order.order_number || '#' + order.id.slice(0, 8).toUpperCase()}
                           </p>
                           <p className="text-xs text-gray-400">
                             {new Date(order.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} • {items.length} article{items.length > 1 ? 's' : ''}
@@ -582,6 +550,28 @@ export default function ProfilePage() {
 
                     {isExpanded && (
                       <div className="border-t border-gray-100 px-4 py-4 bg-gray-50 space-y-3">
+
+                        {/* ✅ Bouton tutoriel */}
+                        {hasTutorial && (
+                          <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-xl px-4 py-3 flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-bold text-pink-700">🎬 Voici votre tutoriel</p>
+                              <p className="text-xs text-pink-500">Cliquer pour télécharger</p>
+                            </div>
+                            <button
+                              onClick={() => handleDownloadTutorial(order.id)}
+                              disabled={downloadingTutorial === order.id}
+                              className="flex items-center gap-2 px-4 py-2 bg-pink-500 text-white text-xs font-semibold rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 flex-shrink-0 ml-3"
+                            >
+                              {downloadingTutorial === order.id ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Téléchargement...</>
+                              ) : (
+                                <><Download className="w-3.5 h-3.5" /> Télécharger</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
                         {items.map((item, idx) => (
                           <div key={idx} className="flex items-center gap-3 bg-white rounded-lg p-3">
                             {item.image ? (
@@ -598,6 +588,7 @@ export default function ProfilePage() {
                             <p className="font-bold text-gray-900 text-sm">{Number(item.price).toFixed(2)}€</p>
                           </div>
                         ))}
+
                         <div className="flex justify-between items-center bg-white rounded-lg px-4 py-3">
                           <span className="text-sm font-semibold text-gray-700">Total payé</span>
                           <span className="font-bold text-gray-900">{Number(order.total_amount).toFixed(2)}€</span>

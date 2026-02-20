@@ -1,4 +1,3 @@
-// src/app/(main)/cart/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { supabase } from '@/lib/supabase';
 import { getCloudinaryUrl } from '@/lib/cloudinary';
 import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface Product {
   id: string;
@@ -22,11 +22,14 @@ interface Product {
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getTotalPrice, clearCart } = useCartStore();
   const { user } = useAuthStore();
+  const router = useRouter();
   const [savedSkinTone, setSavedSkinTone] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  // ✅ Stocker le look_id pour le retour arrière
+  const [returnLookId, setReturnLookId] = useState<string | null>(null);
 
   const skinTones = [
     { id: '1',  name: 'Très clair rosé',      hex: '#FFE4D6' },
@@ -61,18 +64,24 @@ export default function CartPage() {
     fetchProducts();
     const tone = localStorage.getItem('userSkinTone');
     setSavedSkinTone(tone);
+
+    // ✅ Récupérer le look_id depuis les items du panier pour le retour
+    const stored = useCartStore.getState().items;
+    const lookId = stored.find((i: any) => i.look_id)?.look_id || null;
+    setReturnLookId(lookId);
   }, []);
 
+  // ✅ Catégories peau élargies
   const isSkinProduct = (category: string) => {
-    return ['foundation', 'concealer', 'powder', 'teint', 'correcteur', 'poudre', 'peau'].includes(category.toLowerCase());
+    return ['foundation', 'concealer', 'powder', 'teint', 'correcteur', 'poudre',
+            'peau', 'highlighter', 'blush', 'contour'].includes(category.toLowerCase());
   };
 
   const getProduct = (productId: string) => products.find(p => p.id === productId);
 
   const total = getTotalPrice();
-  const finalTotal = total; // ✅ Livraison toujours gratuite
+  const finalTotal = total;
 
-  // ✅ Checkout Stripe avec look_id
   const handleCheckout = async () => {
     setCheckoutLoading(true);
     setCheckoutError(null);
@@ -99,7 +108,7 @@ export default function CartPage() {
           quantity: item.quantity,
           price: product ? Number(product.price) : Number((item as any).price),
           image: product?.cloudinary_id ? getCloudinaryUrl(product.cloudinary_id) : '',
-          look_id: (item as any).look_id || '', // ✅ passer le look_id pour la vidéo après achat
+          look_id: (item as any).look_id || '',
         };
       });
 
@@ -126,6 +135,15 @@ export default function CartPage() {
       setCheckoutError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setCheckoutLoading(false);
+    }
+  };
+
+  // ✅ Bouton retour dynamique
+  const handleBack = () => {
+    if (returnLookId) {
+      router.push(`/checkout-look/${returnLookId}`);
+    } else {
+      router.push('/');
     }
   };
 
@@ -173,10 +191,14 @@ export default function CartPage() {
       <header className="border-b border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 text-sm font-medium hover:text-gray-600">
+            {/* ✅ Retour vers checkout-look si vient d'un look, sinon accueil */}
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 text-sm font-medium hover:text-gray-600"
+            >
               <ArrowLeft className="h-4 w-4" />
-              Continuer mes achats
-            </Link>
+              {returnLookId ? 'Modifier mes produits' : 'Continuer mes achats'}
+            </button>
             <button onClick={clearCart} className="text-sm font-medium text-red-600 hover:text-red-700">
               Vider le panier
             </button>
@@ -188,7 +210,6 @@ export default function CartPage() {
         <h1 className="mb-8 text-3xl font-bold text-gray-900">Votre panier</h1>
 
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Cart items */}
           <div className="lg:col-span-2">
             <div className="space-y-4">
               {items.map((item) => {
@@ -225,23 +246,24 @@ export default function CartPage() {
                             {product.name}
                           </Link>
                           <p className="text-sm text-gray-500">{product.brand}</p>
-                          {/* ✅ Badge "Look" si item vient d'un look */}
-                          {(item as any).look_id && (
-                            <span className="inline-block mt-1 text-xs bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full font-medium">
-                              🎬 Tutoriel inclus
-                            </span>
-                          )}
-                          {isSkin && skinTone ? (
+
+                          {/* ✅ Priorité : shade choisie > carnation si peau > shade string */}
+                          {shade ? (
+                            <div className="mt-1 flex items-center gap-2">
+                              <div className="h-4 w-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: shade.hex }} />
+                              <span className="text-sm text-gray-600">{shade.name}</span>
+                            </div>
+                          ) : isSkin && skinTone ? (
                             <div className="mt-1 flex items-center gap-2">
                               <div className="h-4 w-4 rounded-full border border-gray-300"
                                 style={{ backgroundColor: skinTone.hex }} />
                               <span className="text-sm text-gray-600">{skinTone.name}</span>
                             </div>
-                          ) : shade ? (
+                          ) : item.shade ? (
                             <div className="mt-1 flex items-center gap-2">
-                              <div className="h-4 w-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: shade.hex }} />
-                              <span className="text-sm text-gray-600">{shade.name}</span>
+                              <div className="h-4 w-4 rounded-full border border-gray-300 bg-gray-200" />
+                              <span className="text-sm text-gray-600">{item.shade}</span>
                             </div>
                           ) : null}
                         </div>
@@ -295,14 +317,6 @@ export default function CartPage() {
                   <span>Livraison</span>
                   <span className="font-semibold text-green-600">🎉 Gratuite</span>
                 </div>
-                {/* ✅ Badge tutoriel si items avec look */}
-                {items.some((i: any) => i.look_id) && (
-                  <div className="flex items-center gap-2 bg-pink-50 rounded-lg px-3 py-2">
-                    <span className="text-xs text-pink-600 font-medium">
-                      🎬 Tutoriel vidéo inclus après achat
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div className="my-4 flex justify-between text-lg font-bold text-gray-900">

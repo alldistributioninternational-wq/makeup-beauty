@@ -37,20 +37,38 @@ export async function POST(req: NextRequest) {
 
       const metadata = session.metadata || {}
 
-      const items = metadata.cart_items
-        ? JSON.parse(metadata.cart_items)
-        : lineItems.data.map(item => ({
-            name: (item.price?.product as Stripe.Product)?.name || item.description || '',
-            brand: '',
-            shade: '',
-            quantity: item.quantity || 1,
-            price: (item.amount_total || 0) / 100,
-            image: '',
-          }))
+      // ✅ Parse sécurisé — plus jamais de 500 sur JSON tronqué
+      let items: any[] = []
+      try {
+        items = metadata.cart_items ? JSON.parse(metadata.cart_items) : []
+      } catch {
+        console.warn('⚠️ cart_items JSON invalide, fallback sur lineItems')
+      }
+
+      if (items.length === 0) {
+        items = lineItems.data.map(item => ({
+          name: (item.price?.product as Stripe.Product)?.name || item.description || '',
+          brand: '',
+          shade: '',
+          quantity: item.quantity || 1,
+          price: (item.amount_total || 0) / 100,
+        }))
+      }
+
+      // ✅ look_ids depuis la clé metadata dédiée
+      let lookIds: string[] = []
+      try {
+        lookIds = metadata.look_ids
+          ? JSON.parse(metadata.look_ids).filter(Boolean)
+          : []
+      } catch {
+        console.warn('⚠️ look_ids JSON invalide')
+      }
+
+      console.log('✅ look_ids récupérés:', lookIds)
 
       const totalAmount = (session.amount_total || 0) / 100
-
-      const orderNumber = `CMD-${Date.now().toString().slice(-6)}`
+      const orderNumber = 'CMD-' + Date.now().toString().slice(-6)
 
       const { data: order, error } = await supabase
         .from('orders')
@@ -63,6 +81,7 @@ export async function POST(req: NextRequest) {
           stripe_session_id: session.id,
           status: 'paid',
           items: items,
+          look_ids: lookIds,
           total_amount: totalAmount,
           currency: session.currency || 'eur',
           customer_name: session.customer_details?.name || null,
@@ -80,7 +99,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'DB error' }, { status: 500 })
       }
 
-      console.log('✅ Commande sauvegardée:', order.id)
+      console.log('✅ Commande sauvegardée:', order.id, '| look_ids:', lookIds)
 
       await sendWhatsAppInvoice(twilioClient, supabase, order, items, totalAmount, session, orderNumber)
 
@@ -104,41 +123,22 @@ async function sendWhatsAppInvoice(
 ) {
   try {
     const itemsList = items.map((item: any) =>
-      `• ${item.name}${item.shade ? ` (${item.shade})` : ''} x${item.quantity} — ${Number(item.price).toFixed(2)}€`
+      '• ' + item.name + (item.shade ? ' (' + item.shade + ')' : '') + ' x' + item.quantity + ' — ' + Number(item.price).toFixed(2) + '€'
     ).join('\n')
 
     const shippingAddress = session.collected_information?.shipping_details?.address
     const shippingBlock = shippingAddress
-      ? `\n📦 *Livraison*\n${shippingAddress.line1 || ''}${shippingAddress.line2 ? '\n' + shippingAddress.line2 : ''}\n${shippingAddress.city || ''} ${shippingAddress.postal_code || ''}\n${shippingAddress.country || ''}`
+      ? '\n📦 *Livraison*\n' + (shippingAddress.line1 || '') + (shippingAddress.line2 ? '\n' + shippingAddress.line2 : '') + '\n' + (shippingAddress.city || '') + ' ' + (shippingAddress.postal_code || '') + '\n' + (shippingAddress.country || '')
       : ''
 
     const date = new Date().toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
     })
 
-    const message = `
-🛍️ *NOUVELLE COMMANDE REÇUE*
-━━━━━━━━━━━━━━━━━━━━━
-📋 *${orderNumber}*
-📅 ${date}
+    const message = '🛍️ *NOUVELLE COMMANDE REÇUE*\n━━━━━━━━━━━━━━━━━━━━━\n📋 *' + orderNumber + '*\n📅 ' + date + '\n\n👤 *Client*\nNom: ' + (session.customer_details?.name || 'Non renseigné') + '\nEmail: ' + (session.customer_details?.email || 'Non renseigné') + '\nTél: ' + (session.customer_details?.phone || 'Non renseigné') + '\n\n🛒 *Produits commandés*\n' + itemsList + '\n━━━━━━━━━━━━━━━━━━━━━\n💰 *TOTAL: ' + total.toFixed(2) + '€*\n💳 Paiement Stripe ✅ Confirmé' + shippingBlock + '\n━━━━━━━━━━━━━━━━━━━━━'
 
-👤 *Client*
-Nom: ${session.customer_details?.name || 'Non renseigné'}
-Email: ${session.customer_details?.email || 'Non renseigné'}
-Tél: ${session.customer_details?.phone || 'Non renseigné'}
-
-🛒 *Produits commandés*
-${itemsList}
-━━━━━━━━━━━━━━━━━━━━━
-💰 *TOTAL: ${total.toFixed(2)}€*
-💳 Paiement Stripe ✅ Confirmé
-${shippingBlock}
-━━━━━━━━━━━━━━━━━━━━━
-    `.trim()
+    console.log('📱 Envoi WhatsApp vers:', process.env.WHATSAPP_RECIPIENT_NUMBER)
+    console.log('📱 Depuis:', process.env.TWILIO_WHATSAPP_NUMBER)
 
     await twilioClient.messages.create({
       from: process.env.TWILIO_WHATSAPP_NUMBER!,
@@ -151,8 +151,13 @@ ${shippingBlock}
       .update({ whatsapp_sent: true, updated_at: new Date().toISOString() })
       .eq('id', order.id)
 
-    console.log('✅ WhatsApp facture envoyée pour', orderNumber)
-  } catch (err) {
-    console.error('❌ Erreur envoi WhatsApp:', err)
+    console.log('✅ WhatsApp envoyé pour', orderNumber)
+  } catch (err: any) {
+    console.error('❌ Erreur envoi WhatsApp details:', {
+      message: err.message,
+      code: err.code,
+      status: err.status,
+      moreInfo: err.moreInfo,
+    })
   }
 }

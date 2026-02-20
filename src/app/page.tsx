@@ -32,6 +32,12 @@ interface Look {
   show_in_top_eyes?: boolean;
 }
 
+// ✅ Interface pour les settings du site
+interface SiteSettings {
+  homepage_title: string;
+  homepage_subtitle: string;
+}
+
 function HomePageContent() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
@@ -45,11 +51,30 @@ function HomePageContent() {
   const [showExhaustedMessage, setShowExhaustedMessage] = useState(false);
   const [allLooks, setAllLooks] = useState<Look[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Settings depuis Supabase
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
+    homepage_title: 'Trouve ton look parfait',
+    homepage_subtitle: 'Inspire-toi des looks de notre communauté et achète directement les produits utilisés.',
+  });
   
   const savedLookIds = useSavedLooksStore((state) => state.savedLookIds);
   const toggleLook = useSavedLooksStore((state) => state.toggleLook);
   
   const LOOKS_PER_ROW = 4;
+
+  // ✅ Charger les settings depuis Supabase
+  useEffect(() => {
+    supabase
+      .from('site_settings')
+      .select('homepage_title, homepage_subtitle')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data) setSiteSettings(data)
+      })
+  }, [])
 
   useEffect(() => {
     async function fetchLooks() {
@@ -75,7 +100,6 @@ function HomePageContent() {
       .replace(/[\u0300-\u036f]/g, "");
   };
 
-  // ✅ Filtrer avec priorité aux looks featured
   const getFilteredLooks = () => {
     let looks = allLooks;
 
@@ -123,7 +147,6 @@ function HomePageContent() {
       }
     }
 
-    // ✅ PRIORISER LES LOOKS FEATURED EN PREMIER
     return looks.sort((a, b) => {
       if (a.is_featured && !b.is_featured) return -1;
       if (!a.is_featured && b.is_featured) return 1;
@@ -134,7 +157,6 @@ function HomePageContent() {
   const filteredLooks = getFilteredLooks();
   const totalRows = Math.ceil(filteredLooks.length / LOOKS_PER_ROW);
 
-  // ✅ Looks pour les sections filtrées
   const trendingLooks = allLooks.filter(l => l.show_in_trending);
   const lipLooks = allLooks.filter(l => l.show_in_top_lips);
   const eyeLooks = allLooks.filter(l => l.show_in_top_eyes);
@@ -237,10 +259,9 @@ function HomePageContent() {
     return (
       <div className="min-h-screen bg-white flex flex-col">
         <div className="px-4 pt-6 pb-3 text-center">
-          <h2 className="text-2xl font-bold text-black mb-2">Trouve ton look parfait</h2>
-          <p className="text-sm text-gray-600">
-            Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
-          </p>
+          {/* ✅ Titre et sous-titre depuis Supabase */}
+          <h2 className="text-2xl font-bold text-black mb-2">{siteSettings.homepage_title}</h2>
+          <p className="text-sm text-gray-600">{siteSettings.homepage_subtitle}</p>
         </div>
 
         <div className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide">
@@ -274,7 +295,6 @@ function HomePageContent() {
                   alt={currentLook.title}
                   className="w-full h-full object-cover"
                 />
-                {/* ✅ Badge Featured */}
                 {currentLook.is_featured && (
                   <div className="absolute top-3 left-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
                     ⭐ VEDETTE
@@ -373,7 +393,6 @@ function HomePageContent() {
             </p>
           </div>
 
-          {/* LOOKS TENDANCES */}
           {trendingLooks.length > 0 && (
             <div className="mb-12">
               <h2 className="text-3xl font-bold text-black mb-6">LOOKS TENDANCES</h2>
@@ -387,20 +406,12 @@ function HomePageContent() {
                           onClick={(e) => handleToggleLike(look.id, e)}
                           className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
                         >
-                          <Heart 
-                            className={`w-5 h-5 transition-colors ${
-                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                            }`}
-                          />
+                          <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                         </button>
                       )}
                       <Link href={`/feed/${look.id}`} className="block">
                         <div className="relative aspect-[3/4]">
-                          <img 
-                            src={getImageUrl(look)}
-                            alt={look.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                         </div>
                       </Link>
                     </div>
@@ -413,7 +424,6 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* TOP LOOKS LÈVRES */}
           {lipLooks.length > 0 && (
             <div className="mb-12">
               <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS LÈVRES</h2>
@@ -427,33 +437,22 @@ function HomePageContent() {
                           onClick={(e) => handleToggleLike(look.id, e)}
                           className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
                         >
-                          <Heart 
-                            className={`w-5 h-5 transition-colors ${
-                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                            }`}
-                          />
+                          <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                         </button>
                       )}
                       <Link href={`/feed/${look.id}`} className="block">
                         <div className="relative aspect-[3/4]">
-                          <img 
-                            src={getImageUrl(look)}
-                            alt={look.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                         </div>
                       </Link>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-base text-gray-900 leading-relaxed font-medium">
-                Des lèvres parfaitement sublimées !
-              </p>
+              <p className="text-base text-gray-900 leading-relaxed font-medium">Des lèvres parfaitement sublimées !</p>
             </div>
           )}
 
-          {/* TOP LOOKS YEUX */}
           {eyeLooks.length > 0 && (
             <div className="mb-12">
               <h2 className="text-3xl font-bold text-black mb-6">TOP LOOKS YEUX</h2>
@@ -467,20 +466,12 @@ function HomePageContent() {
                           onClick={(e) => handleToggleLike(look.id, e)}
                           className="absolute top-2 right-2 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
                         >
-                          <Heart 
-                            className={`w-5 h-5 transition-colors ${
-                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                            }`}
-                          />
+                          <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                         </button>
                       )}
                       <Link href={`/feed/${look.id}`} className="block">
                         <div className="relative aspect-[3/4]">
-                          <img 
-                            src={getImageUrl(look)}
-                            alt={look.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                         </div>
                       </Link>
                     </div>
@@ -490,7 +481,6 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* SECTION HERO MOBILE */}
           <div className="w-full -mx-4 bg-black py-12 px-6 mt-12">
             <div className="flex flex-col">
               <div className="text-white mb-8">
@@ -501,21 +491,12 @@ function HomePageContent() {
                   Qui veut être peu exigeant de toute façon ? À quiconque a lancé cette tendance "sans chichi", 
                   avec tout le respect que nous vous devons, nous pleurerions pour vous mais notre mascara est trop cher.
                 </p>
-                <Link 
-                  href="/about-us"
-                  className="inline-block px-8 py-3 border-2 border-white text-white font-semibold hover:bg-white hover:text-black transition-colors text-sm"
-                >
+                <Link href="/about-us" className="inline-block px-8 py-3 border-2 border-white text-white font-semibold hover:bg-white hover:text-black transition-colors text-sm">
                   DÉCOUVREZ-NOUS
                 </Link>
               </div>
-              
               <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
-                <Image
-                  src="/images/aboutus/aboutusimage.jpg"
-                  alt="Makeup hero"
-                  fill
-                  className="object-cover"
-                />
+                <Image src="/images/aboutus/aboutusimage.jpg" alt="Makeup hero" fill className="object-cover" />
               </div>
             </div>
           </div>
@@ -527,14 +508,13 @@ function HomePageContent() {
     );
   }
 
-  // VERSION DESKTOP (identique avec sections filtrées)
+  // VERSION DESKTOP
   return (
     <>
       <main className="max-w-7xl mx-auto px-6 py-3">
-        <h2 className="text-3xl font-bold text-center mb-1">Trouve ton look parfait</h2>
-        <p className="text-center text-gray-600 text-sm mb-2">
-          Inspire-toi des looks de notre communauté et achète directement les produits utilisés.
-        </p>
+        {/* ✅ Titre et sous-titre depuis Supabase */}
+        <h2 className="text-3xl font-bold text-center mb-1">{siteSettings.homepage_title}</h2>
+        <p className="text-center text-gray-600 text-sm mb-2">{siteSettings.homepage_subtitle}</p>
 
         <div className="flex justify-center gap-2 mb-3">
           {['Tous', 'Naturel', 'Glamour', 'Soirée', 'Tous les jours'].map(filter => (
@@ -561,7 +541,6 @@ function HomePageContent() {
         <div className="grid grid-cols-4 gap-3 mb-8">
           {currentLooks.map((look) => {
             const isLiked = mounted && savedLookIds.includes(look.id);
-            
             return (
               <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
                 {mounted && (
@@ -569,21 +548,12 @@ function HomePageContent() {
                     onClick={(e) => handleToggleLike(look.id, e)}
                     className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
                   >
-                    <Heart 
-                      className={`w-6 h-6 transition-colors ${
-                        isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                      }`}
-                    />
+                    <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                   </button>
                 )}
-
                 <Link href={`/feed/${look.id}`} className="block">
                   <div className="relative aspect-[3/4]">
-                    <img 
-                      src={getImageUrl(look)}
-                      alt={look.title}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-sm font-semibold">
@@ -599,9 +569,7 @@ function HomePageContent() {
                         <>
                           <div className="flex gap-2 mt-1">
                             {look.tags?.slice(0, 2).map((tag: string) => (
-                              <span key={tag} className="text-xs bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">
-                                #{tag}
-                              </span>
+                              <span key={tag} className="text-xs bg-white/20 backdrop-blur-sm text-white px-2 py-0.5 rounded-full">#{tag}</span>
                             ))}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-white text-xs">
@@ -636,12 +604,10 @@ function HomePageContent() {
           <div className="text-center mb-16">
             <h1 className="text-5xl font-bold text-black mb-4">UNE NOUVELLE FAÇON DE SHOPPER LA BEAUTÉ EN LIGNE.</h1>
             <p className="text-base text-gray-700 max-w-3xl mx-auto leading-relaxed">
-              Parcourir des looks sur les réseaux sociaux, regarder des tutoriels et aller en magasin. 
-              Qui a le temps pour tout ça ?
+              Parcourir des looks sur les réseaux sociaux, regarder des tutoriels et aller en magasin. Qui a le temps pour tout ça ?
             </p>
           </div>
 
-          {/* LOOKS TENDANCES */}
           {trendingLooks.length > 0 && (
             <div className="mb-16">
               <h2 className="text-4xl font-bold text-black mb-8">LOOKS TENDANCES</h2>
@@ -651,24 +617,13 @@ function HomePageContent() {
                   return (
                     <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
                       {mounted && (
-                        <button
-                          onClick={(e) => handleToggleLike(look.id, e)}
-                          className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-                        >
-                          <Heart 
-                            className={`w-6 h-6 transition-colors ${
-                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                            }`}
-                          />
+                        <button onClick={(e) => handleToggleLike(look.id, e)} className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors">
+                          <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                         </button>
                       )}
                       <Link href={`/feed/${look.id}`} className="block">
                         <div className="relative aspect-[3/4]">
-                          <img 
-                            src={getImageUrl(look)}
-                            alt={look.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                             <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
@@ -681,7 +636,6 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* TOP LOOKS LÈVRES */}
           {lipLooks.length > 0 && (
             <div className="mb-16">
               <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS LÈVRES</h2>
@@ -691,24 +645,13 @@ function HomePageContent() {
                   return (
                     <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
                       {mounted && (
-                        <button
-                          onClick={(e) => handleToggleLike(look.id, e)}
-                          className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-                        >
-                          <Heart 
-                            className={`w-6 h-6 transition-colors ${
-                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                            }`}
-                          />
+                        <button onClick={(e) => handleToggleLike(look.id, e)} className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors">
+                          <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                         </button>
                       )}
                       <Link href={`/feed/${look.id}`} className="block">
                         <div className="relative aspect-[3/4]">
-                          <img 
-                            src={getImageUrl(look)}
-                            alt={look.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                             <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
@@ -721,7 +664,6 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* TOP LOOKS YEUX */}
           {eyeLooks.length > 0 && (
             <div className="mb-16">
               <h2 className="text-4xl font-bold text-black mb-8">TOP LOOKS YEUX</h2>
@@ -731,24 +673,13 @@ function HomePageContent() {
                   return (
                     <div key={look.id} className="relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group">
                       {mounted && (
-                        <button
-                          onClick={(e) => handleToggleLike(look.id, e)}
-                          className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-                        >
-                          <Heart 
-                            className={`w-6 h-6 transition-colors ${
-                              isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'
-                            }`}
-                          />
+                        <button onClick={(e) => handleToggleLike(look.id, e)} className="absolute top-3 right-3 z-10 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors">
+                          <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'fill-pink-500 text-pink-500' : 'text-gray-700'}`} />
                         </button>
                       )}
                       <Link href={`/feed/${look.id}`} className="block">
                         <div className="relative aspect-[3/4]">
-                          <img 
-                            src={getImageUrl(look)}
-                            alt={look.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={getImageUrl(look)} alt={look.title} className="w-full h-full object-cover" />
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                             <h3 className="text-white font-bold">{look.title}</h3>
                           </div>
@@ -761,29 +692,17 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* SECTION HERO DESKTOP */}
           <div className="w-full bg-pink-500 py-16 px-8 rounded-2xl">
             <div className="max-w-6xl mx-auto grid grid-cols-2 gap-12 items-center">
               <div className="relative aspect-[3/4] rounded-lg overflow-hidden">
-                <Image
-                  src="/images/aboutus/aboutusimage.jpg"
-                  alt="Makeup hero"
-                  fill
-                  className="object-cover"
-                />
+                <Image src="/images/aboutus/aboutusimage.jpg" alt="Makeup hero" fill className="object-cover" />
               </div>
-              
               <div className="text-white">
                 <h2 className="text-5xl font-bold mb-6 leading-tight">
                   MAQUILLAGE POUR LES GENS QUI NE S'EXCUSENT PAS POUR LEURS STANDARDS ÉLEVÉS.
                 </h2>
-                <p className="text-lg mb-8 leading-relaxed">
-                  Qui veut être peu exigeant de toute façon ?
-                </p>
-                <Link 
-                  href="/about-us"
-                  className="inline-block px-8 py-3 border-2 border-white text-white font-medium hover:bg-white hover:text-pink-500 transition-colors text-lg"
-                >
+                <p className="text-lg mb-8 leading-relaxed">Qui veut être peu exigeant de toute façon ?</p>
+                <Link href="/about-us" className="inline-block px-8 py-3 border-2 border-white text-white font-medium hover:bg-white hover:text-pink-500 transition-colors text-lg">
                   DÉCOUVREZ-NOUS
                 </Link>
               </div>
