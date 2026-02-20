@@ -140,18 +140,48 @@ async function sendWhatsAppInvoice(
     console.log('📱 Envoi WhatsApp vers:', process.env.WHATSAPP_RECIPIENT_NUMBER)
     console.log('📱 Depuis:', process.env.TWILIO_WHATSAPP_NUMBER)
 
-    await twilioClient.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER!,
-      to: process.env.WHATSAPP_RECIPIENT_NUMBER!,
-      body: message,
-    })
+    // ✅ Retry automatique en cas de timeout
+    let attempts = 0
+    const maxAttempts = 3
 
-    await supabase
-      .from('orders')
-      .update({ whatsapp_sent: true, updated_at: new Date().toISOString() })
-      .eq('id', order.id)
+    while (attempts < maxAttempts) {
+      try {
+        await twilioClient.messages.create({
+          from: process.env.TWILIO_WHATSAPP_NUMBER!,
+          to: process.env.WHATSAPP_RECIPIENT_NUMBER!,
+          body: message,
+        })
 
-    console.log('✅ WhatsApp envoyé pour', orderNumber)
+        // ✅ Succès, on met à jour la BDD
+        await supabase
+          .from('orders')
+          .update({ whatsapp_sent: true, updated_at: new Date().toISOString() })
+          .eq('id', order.id)
+
+        console.log('✅ WhatsApp envoyé pour', orderNumber)
+        return // Sortie de la fonction si succès
+
+      } catch (err: any) {
+        attempts++
+        
+        // Si c'est une erreur de quota, on arrête immédiatement
+        if (err.code === 63038 || err.status === 429) {
+          console.error('❌ Limite Twilio atteinte (5 msg/jour)', err.message)
+          throw err // On ne retry pas sur une limite de quota
+        }
+
+        // Si c'est un timeout et qu'il reste des tentatives
+        if (err.code === 'ETIMEDOUT' && attempts < maxAttempts) {
+          console.log(`⚠️ Timeout (tentative ${attempts}/${maxAttempts}), nouvelle tentative dans 3s...`)
+          await new Promise(resolve => setTimeout(resolve, 3000)) // Attend 3 secondes
+          continue
+        }
+
+        // Autre erreur ou max attempts atteint
+        throw err
+      }
+    }
+
   } catch (err: any) {
     console.error('❌ Erreur envoi WhatsApp details:', {
       message: err.message,
